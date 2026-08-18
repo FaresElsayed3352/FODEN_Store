@@ -35,12 +35,11 @@ const supabase =
       })
     : null;
 const connectionString =
-  process.env.POSTGRES_PRISMA_URL ||
-  process.env.POSTGRES_URL ||
-  process.env.POSTGRES_URL_NON_POOLING;
+  process.env.POSTGRES_URL_NON_POOLING ||
+  process.env.POSTGRES_URL;
 
 if (!connectionString) {
-  console.warn('WARNING: No Postgres connection string found.');
+  console.error('ERROR: No Postgres connection string found.');
 }
 
 const pool = connectionString
