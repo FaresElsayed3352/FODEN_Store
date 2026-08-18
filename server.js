@@ -1,163 +1,896 @@
 const express = require('express');
 const multer = require('multer');
-const fs = require('fs');
-const path = require('path');
 const crypto = require('crypto');
+const path = require('path');
+const { Pool } = require('pg');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
-const DATA = path.join('/tmp', 'foden-data');
-const UPLOADS = path.join('/tmp', 'foden-uploads');
-
-fs.mkdirSync(DATA, { recursive: true });
-fs.mkdirSync(UPLOADS, { recursive: true });
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'CHANGE_ME';
 const WHATSAPP = process.env.WHATSAPP_NUMBER || '201020477414';
 const KEY = Buffer.from(process.env.CREDENTIAL_KEY || '', 'base64');
 
-if (KEY.length !== 32) console.warn('WARNING: CREDENTIAL_KEY must decode to exactly 32 bytes.');
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const RECEIPT_BUCKET = 'receipts';
 
-const files = {
-  orders:path.join(DATA,'orders.json'),
-  visitors:path.join(DATA,'visitors.json'),
-  packages:path.join(DATA,'packages.json'),
-  secrets:path.join(DATA,'secrets.json')
-};
-const defaults = {
-  orders:[], visitors:{active:{}, total:0, today:0, exited:0, day:new Date().toISOString().slice(0,10)},
-  packages:[
-    ...[[110,60],[231,120],[341,165],[460,220],[583,270],[1040,470],[1188,540],[2002,900],[2420,1050],[3000,1350],[5000,2190],[5600,2450]].map(x=>({type:'id',diamonds:x[0],price:x[1],active:true})),
-    ...[[110,55],[310,145],[520,220],[1060,380],[2180,760],[3240,1140],[5600,1850],[11200,3700]].map(x=>({type:'account',diamonds:x[0],price:x[1],active:true}))
-  ],
-  secrets:{}
-};
-function read(k){
-  try{return JSON.parse(fs.readFileSync(files[k],'utf8'))}catch{return structuredClone(defaults[k])}
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  console.warn('WARNING: Supabase environment variables are missing.');
 }
-function write(k,v){fs.writeFileSync(files[k],JSON.stringify(v,null,2))}
-for(const k of Object.keys(files)){ if(!fs.existsSync(files[k])) write(k,defaults[k]); }
 
-app.use(express.json({limit:'2mb'}));
-app.use(express.urlencoded({extended:true}));
-app.use('/uploads',express.static(UPLOADS));
+if (KEY.length !== 32) {
+  console.warn('WARNING: CREDENTIAL_KEY must decode to exactly 32 bytes.');
+}
+
+const supabase =
+  SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false
+        }
+      })
+    : null;
+
+const connectionString =
+  process.env.POSTGRES_URL_NON_POOLING ||
+  process.env.POSTGRES_PRISMA_URL ||
+  process.env.POSTGRES_URL;
+
+if (!connectionString) {
+  console.warn('WARNING: No Postgres connection string found.');
+}
+
+const pool = connectionString
+  ? new Pool({
+      connectionString,
+      ssl: { rejectUnauthorized: false },
+      max: 2
+    })
+  : null;
+
+const defaultPackages = {
+  id: [
+    [110, 60],
+    [231, 120],
+    [341, 165],
+    [460, 220],
+    [583, 270],
+    [1040, 470],
+    [1188, 540],
+    [2002, 900],
+    [2420, 1050],
+    [3000, 1350],
+    [5000, 2190],
+    [5600, 2450]
+  ],
+  account: [
+    [110, 55],
+    [310, 145],
+    [520, 220],
+    [1060, 380],
+    [2180, 760],
+    [3240, 1140],
+    [5600, 1850],
+    [11200, 3700]
+  ]
+};
+
+async function initDatabase() {
+  if (!pool) {
+    throw new Error('Database is not configured.');
+  }
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS orders (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL CHECK (type IN ('id','account')),
+      diamonds INTEGER NOT NULL,
+      price NUMERIC NOT NULL,
+      player_id TEXT DEFAULT '',
+      customer_name TEXT DEFAULT '',
+      receipt_path TEXT,
+      status TEXT NOT NULL DEFAULT 'new',
+      has_credentials BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ
+    );
+
+    CREATE TABLE IF NOT EXISTS order_secrets (
+      order_id TEXT PRIMARY KEY REFERENCES orders(id) ON DELETE CASCADE,
+      username JSONB NOT NULL,
+      password JSONB NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS visitors (
+      id TEXT PRIMARY KEY,
+      first_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      exited_at TIMESTAMPTZ
+    );
+
+    CREATE TABLE IF NOT EXISTS packages (
+      id BIGSERIAL PRIMARY KEY,
+      type TEXT NOT NULL CHECK (type IN ('id','account')),
+      diamonds INTEGER NOT NULL,
+      price NUMERIC NOT NULL,
+      active BOOLEAN NOT NULL DEFAULT TRUE
+    );
+  `);
+
+  const packageCount = await pool.query(
+    'SELECT COUNT(*)::int AS count FROM packages'
+  );
+
+  if (packageCount.rows[0].count === 0) {
+    for (const [diamonds, price] of defaultPackages.id) {
+      await pool.query(
+        `
+        INSERT INTO packages (type, diamonds, price, active)
+        VALUES ($1, $2, $3, TRUE)
+        `,
+        ['id', diamonds, price]
+      );
+    }
+
+    for (const [diamonds, price] of defaultPackages.account) {
+      await pool.query(
+        `
+        INSERT INTO packages (type, diamonds, price, active)
+        VALUES ($1, $2, $3, TRUE)
+        `,
+        ['account', diamonds, price]
+      );
+    }
+  }
+
+  if (supabase) {
+    const { data: bucket } =
+      await supabase.storage.getBucket(RECEIPT_BUCKET);
+
+    if (!bucket) {
+      const { error } =
+        await supabase.storage.createBucket(RECEIPT_BUCKET, {
+          public: false,
+          allowedMimeTypes: [
+            'image/jpeg',
+            'image/png',
+            'image/webp'
+          ],
+          fileSizeLimit: 5 * 1024 * 1024
+        });
+
+      if (
+        error &&
+        !/already exists/i.test(error.message || '')
+      ) {
+        console.error(
+          'Storage bucket error:',
+          error.message
+        );
+      }
+    }
+  }
+}
+
+const ready = initDatabase().catch((error) => {
+  console.error('Database initialization failed:', error);
+  throw error;
+});
+
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(ROOT));
 
 const upload = multer({
-  storage:multer.diskStorage({
-    destination:(_,__,cb)=>cb(null,UPLOADS),
-    filename:(_,file,cb)=>{
-      const ext=path.extname(file.originalname).toLowerCase();
-      cb(null,crypto.randomUUID()+ext);
-    }
-  }),
-  limits:{fileSize:5*1024*1024},
-  fileFilter:(_,file,cb)=>cb(null,/^image\/(jpeg|png|webp)$/.test(file.mimetype))
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024
+  },
+  fileFilter: (_, file, cb) => {
+    cb(
+      null,
+      /^image\/(jpeg|png|webp)$/.test(file.mimetype)
+    );
+  }
 });
 
-function auth(req,res,next){
-  if(!ADMIN_TOKEN || req.headers.authorization !== `Bearer ${ADMIN_TOKEN}`)
-    return res.status(401).json({error:'unauthorized'});
+function auth(req, res, next) {
+  if (
+    !ADMIN_TOKEN ||
+    req.headers.authorization !== `Bearer ${ADMIN_TOKEN}`
+  ) {
+    return res.status(401).json({
+      error: 'unauthorized'
+    });
+  }
+
   next();
 }
-function now(){return Date.now()}
-function cleanupVisitors(){
-  const v=read('visitors'), t=now(), timeout=35000;
-  for(const [id,ts] of Object.entries(v.active)) if(t-ts>timeout) delete v.active[id];
-  const today=new Date().toISOString().slice(0,10);
-  if(v.day!==today){v.day=today;v.today=0;v.exited=0;}
-  write('visitors',v); return v;
-}
-function visitorStats(){
-  const v=cleanupVisitors();
-  return {online:Object.keys(v.active).length,total:v.total,today:v.today,exited:v.exited};
+
+function now() {
+  return Date.now();
 }
 
-app.post('/api/visitor/heartbeat',(req,res)=>{
-  const id=String(req.body?.id||'').slice(0,100); if(!id)return res.status(400).json({error:'id'});
-  const v=cleanupVisitors(); if(!v.active[id]){v.total++;v.today++;}
-  v.active[id]=now(); write('visitors',v); res.json(visitorStats());
-});
-app.post('/api/visitor/exit',(req,res)=>{
-  const id=String(req.body?.id||'').slice(0,100); const v=cleanupVisitors();
-  if(id&&v.active[id]){delete v.active[id];v.exited++;write('visitors',v);}
-  res.json(visitorStats());
-});
-app.get('/api/visitor/stats',(req,res)=>res.json(visitorStats()));
-
-function enc(s){
-  if(KEY.length!==32) throw new Error('CREDENTIAL_KEY not configured');
-  const iv=crypto.randomBytes(12), c=crypto.createCipheriv('aes-256-gcm',KEY,iv);
-  const d=Buffer.concat([c.update(String(s),'utf8'),c.final()]);
-  return {iv:iv.toString('base64'),data:d.toString('base64'),tag:c.getAuthTag().toString('base64')};
-}
-function dec(x){
-  const d=crypto.createDecipheriv('aes-256-gcm',KEY,Buffer.from(x.iv,'base64'));
-  d.setAuthTag(Buffer.from(x.tag,'base64'));
-  return Buffer.concat([d.update(Buffer.from(x.data,'base64')),d.final()]).toString('utf8');
-}
-function newOrderId(){return 'FD-'+Date.now().toString(36).toUpperCase()+'-'+crypto.randomBytes(2).toString('hex').toUpperCase();}
-
-app.get('/api/packages',(req,res)=>{
-  res.json(read('packages').filter(p=>p.active));
-});
-
-app.post('/api/orders',upload.single('receipt'),(req,res)=>{
-  const {type,diamonds,price,playerId,username,password,customerName}=req.body;
-  if(!['id','account'].includes(type))return res.status(400).json({error:'نوع شحن غير صحيح'});
-  if(!diamonds||!price)return res.status(400).json({error:'بيانات الباقة ناقصة'});
-  if(type==='id' && !String(playerId||'').trim())return res.status(400).json({error:'UID مطلوب'});
-  if(type==='account' && (!String(username||'').trim() || !String(password||'')))return res.status(400).json({error:'بيانات الحساب مطلوبة'});
-  const id=newOrderId();
-  const orders=read('orders');
-  const order={
-    id,type,diamonds:Number(diamonds),price:Number(price),
-    playerId:String(playerId||'').trim(),
-    customerName:String(customerName||'').trim(),
-    receipt:req.file?'/uploads/'+req.file.filename:null,
-    status:'new',createdAt:new Date().toISOString()
-  };
-  if(type==='account'){
-    if(KEY.length!==32)return res.status(500).json({error:'التشفير غير مهيأ على السيرفر'});
-    const secrets=read('secrets');
-    secrets[id]={username:enc(username),password:enc(password),expiresAt:now()+15*60*1000};
-    write('secrets',secrets);
-    order.hasCredentials=true;
+function enc(value) {
+  if (KEY.length !== 32) {
+    throw new Error('CREDENTIAL_KEY not configured');
   }
-  orders.unshift(order);write('orders',orders);
-  const msg=`طلب FODEN%0Aرقم الطلب: ${encodeURIComponent(id)}%0Aالباقة: ${diamonds} جوهرة%0Aالسعر: ${price} ج.م%0Aنوع الشحن: ${type==='id'?'UID':'حساب'}%0A${type==='id'?`UID: ${encodeURIComponent(playerId)}`:''}`;
-  res.json({ok:true,orderId:id,whatsapp:`https://wa.me/${WHATSAPP}?text=${msg}`});
+
+  const iv = crypto.randomBytes(12);
+
+  const cipher = crypto.createCipheriv(
+    'aes-256-gcm',
+    KEY,
+    iv
+  );
+
+  const data = Buffer.concat([
+    cipher.update(String(value), 'utf8'),
+    cipher.final()
+  ]);
+
+  return {
+    iv: iv.toString('base64'),
+    data: data.toString('base64'),
+    tag: cipher.getAuthTag().toString('base64')
+  };
+}
+
+function dec(value) {
+  if (KEY.length !== 32) {
+    throw new Error('CREDENTIAL_KEY not configured');
+  }
+
+  const decipher = crypto.createDecipheriv(
+    'aes-256-gcm',
+    KEY,
+    Buffer.from(value.iv, 'base64')
+  );
+
+  decipher.setAuthTag(
+    Buffer.from(value.tag, 'base64')
+  );
+
+  return Buffer.concat([
+    decipher.update(
+      Buffer.from(value.data, 'base64')
+    ),
+    decipher.final()
+  ]).toString('utf8');
+}
+
+function newOrderId() {
+  return (
+    'FD-' +
+    Date.now().toString(36).toUpperCase() +
+    '-' +
+    crypto.randomBytes(2).toString('hex').toUpperCase()
+  );
+}
+
+async function visitorStats() {
+  await ready;
+
+  const result = await pool.query(`
+    SELECT
+      COUNT(*) FILTER (
+        WHERE last_seen > NOW() - INTERVAL '35 seconds'
+      )::int AS online,
+
+      COUNT(*)::int AS total,
+
+      COUNT(*) FILTER (
+        WHERE first_seen::date =
+        (NOW() AT TIME ZONE 'UTC')::date
+      )::int AS today,
+
+      COUNT(*) FILTER (
+        WHERE exited_at::date =
+        (NOW() AT TIME ZONE 'UTC')::date
+      )::int AS exited
+
+    FROM visitors
+  `);
+
+  return result.rows[0];
+}
+
+app.post('/api/visitor/heartbeat', async (req, res) => {
+  try {
+    await ready;
+
+    const id = String(
+      req.body?.id || ''
+    ).slice(0, 100);
+
+    if (!id) {
+      return res.status(400).json({
+        error: 'id'
+      });
+    }
+
+    await pool.query(
+      `
+      INSERT INTO visitors
+        (id, first_seen, last_seen, exited_at)
+      VALUES
+        ($1, NOW(), NOW(), NULL)
+
+      ON CONFLICT (id)
+      DO UPDATE SET
+        last_seen = NOW(),
+        exited_at = NULL
+      `,
+      [id]
+    );
+
+    res.json(await visitorStats());
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error: 'visitor error'
+    });
+  }
 });
 
-app.get('/api/orders',auth,(req,res)=>res.json(read('orders')));
-app.patch('/api/orders/:id',auth,(req,res)=>{
-  const orders=read('orders'); const o=orders.find(x=>x.id===req.params.id);
-  if(!o)return res.status(404).json({error:'not found'});
-  const allowed=['new','paid','processing','completed','cancelled'];
-  if(!allowed.includes(req.body.status))return res.status(400).json({error:'status'});
-  o.status=req.body.status;o.updatedAt=new Date().toISOString();write('orders',orders);res.json(o);
-});
-app.get('/api/orders/:id/credentials',auth,(req,res)=>{
-  const secrets=read('secrets'), s=secrets[req.params.id];
-  if(!s||s.expiresAt<now()) {delete secrets[req.params.id];write('secrets',secrets);return res.status(404).json({error:'انتهت صلاحية بيانات الدخول'});}
-  const result={username:dec(s.username),password:dec(s.password)};
-  delete secrets[req.params.id];write('secrets',secrets);
-  res.json(result);
+app.post('/api/visitor/exit', async (req, res) => {
+  try {
+    await ready;
+
+    const id = String(
+      req.body?.id || ''
+    ).slice(0, 100);
+
+    if (id) {
+      await pool.query(
+        `
+        UPDATE visitors
+        SET exited_at = NOW()
+        WHERE id = $1
+        `,
+        [id]
+      );
+    }
+
+    res.json(await visitorStats());
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error: 'visitor error'
+    });
+  }
 });
 
-app.get('/api/admin/stats',auth,(req,res)=>{
-  const orders=read('orders');
-  const counts={new:0,paid:0,processing:0,completed:0,cancelled:0};
-  for(const o of orders)counts[o.status]=(counts[o.status]||0)+1;
-  res.json({visitors:visitorStats(),orders:orders.length,counts});
+app.get('/api/visitor/stats', async (req, res) => {
+  try {
+    res.json(await visitorStats());
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error: 'visitor error'
+    });
+  }
 });
-app.get('/api/health',(req,res)=>res.json({ok:true}));
 
-app.get('/admin.html',(req,res)=>{
-  res.sendFile(path.join(ROOT,'admin.html'));
+app.get('/api/packages', async (req, res) => {
+  try {
+    await ready;
+
+    const result = await pool.query(`
+      SELECT
+        type,
+        diamonds,
+        price
+      FROM packages
+      WHERE active = TRUE
+      ORDER BY diamonds ASC
+    `);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error: 'packages error'
+    });
+  }
 });
 
-app.get(/.*/,(req,res)=>res.sendFile(path.join(ROOT,'index.html')));
+app.post(
+  '/api/orders',
+  upload.single('receipt'),
+  async (req, res) => {
+    try {
+      await ready;
 
-app.listen(PORT,()=>console.log(`FODEN running on port ${PORT}`));
+      const {
+        type,
+        diamonds,
+        price,
+        playerId,
+        username,
+        password,
+        customerName
+      } = req.body;
+
+      if (!['id', 'account'].includes(type)) {
+        return res.status(400).json({
+          error: 'نوع شحن غير صحيح'
+        });
+      }
+
+      if (!diamonds || !price) {
+        return res.status(400).json({
+          error: 'بيانات الباقة ناقصة'
+        });
+      }
+
+      if (
+        type === 'id' &&
+        !String(playerId || '').trim()
+      ) {
+        return res.status(400).json({
+          error: 'UID مطلوب'
+        });
+      }
+
+      if (
+        type === 'account' &&
+        (
+          !String(username || '').trim() ||
+          !String(password || '')
+        )
+      ) {
+        return res.status(400).json({
+          error: 'بيانات الحساب مطلوبة'
+        });
+      }
+
+      if (
+        type === 'account' &&
+        KEY.length !== 32
+      ) {
+        return res.status(500).json({
+          error: 'التشفير غير مهيأ على السيرفر'
+        });
+      }
+
+      const id = newOrderId();
+
+      let receiptPath = null;
+
+      if (req.file) {
+        if (!supabase) {
+          return res.status(500).json({
+            error: 'Storage غير مهيأ على السيرفر'
+          });
+        }
+
+        const extension =
+          req.file.mimetype === 'image/png'
+            ? 'png'
+            : req.file.mimetype === 'image/webp'
+              ? 'webp'
+              : 'jpg';
+
+        receiptPath =
+          `${id}-${crypto.randomBytes(6).toString('hex')}.${extension}`;
+
+        const { error } =
+          await supabase.storage
+            .from(RECEIPT_BUCKET)
+            .upload(
+              receiptPath,
+              req.file.buffer,
+              {
+                contentType: req.file.mimetype,
+                cacheControl: '3600',
+                upsert: false
+              }
+            );
+
+        if (error) {
+          console.error(
+            'Receipt upload error:',
+            error
+          );
+
+          return res.status(500).json({
+            error: 'فشل رفع الإيصال'
+          });
+        }
+      }
+
+      const client = await pool.connect();
+
+      try {
+        await client.query('BEGIN');
+
+        await client.query(
+          `
+          INSERT INTO orders
+            (
+              id,
+              type,
+              diamonds,
+              price,
+              player_id,
+              customer_name,
+              receipt_path,
+              status,
+              has_credentials
+            )
+          VALUES
+            ($1,$2,$3,$4,$5,$6,$7,'new',$8)
+          `,
+          [
+            id,
+            type,
+            Number(diamonds),
+            Number(price),
+            String(playerId || '').trim(),
+            String(customerName || '').trim(),
+            receiptPath,
+            type === 'account'
+          ]
+        );
+
+        if (type === 'account') {
+          await client.query(
+            `
+            INSERT INTO order_secrets
+              (
+                order_id,
+                username,
+                password,
+                expires_at
+              )
+            VALUES
+              ($1,$2,$3,NOW() + INTERVAL '15 minutes')
+            `,
+            [
+              id,
+              JSON.stringify(enc(username)),
+              JSON.stringify(enc(password))
+            ]
+          );
+        }
+
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+
+        if (receiptPath && supabase) {
+          await supabase.storage
+            .from(RECEIPT_BUCKET)
+            .remove([receiptPath]);
+        }
+
+        throw error;
+      } finally {
+        client.release();
+      }
+
+      const message =
+        `طلب FODEN%0A` +
+        `رقم الطلب: ${encodeURIComponent(id)}%0A` +
+        `الباقة: ${diamonds} جوهرة%0A` +
+        `السعر: ${price} ج.م%0A` +
+        `نوع الشحن: ${
+          type === 'id' ? 'UID' : 'حساب'
+        }%0A` +
+        (
+          type === 'id'
+            ? `UID: ${encodeURIComponent(playerId)}`
+            : ''
+        );
+
+      res.json({
+        ok: true,
+        orderId: id,
+        whatsapp:
+          `https://wa.me/${WHATSAPP}?text=${message}`
+      });
+    } catch (error) {
+      console.error(
+        'Order error:',
+        error
+      );
+
+      res.status(500).json({
+        error: 'حدث خطأ أثناء إنشاء الطلب'
+      });
+    }
+  }
+);
+
+function formatOrder(row, receipt = null) {
+  return {
+    id: row.id,
+    type: row.type,
+    diamonds: Number(row.diamonds),
+    price: Number(row.price),
+    playerId: row.player_id || '',
+    customerName: row.customer_name || '',
+    receipt,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    hasCredentials: row.has_credentials
+  };
+}
+
+app.get('/api/orders', auth, async (req, res) => {
+  try {
+    await ready;
+
+    const result = await pool.query(`
+      SELECT *
+      FROM orders
+      ORDER BY created_at DESC
+    `);
+
+    const orders = [];
+
+    for (const row of result.rows) {
+      let receipt = null;
+
+      if (row.receipt_path && supabase) {
+        const signed =
+          await supabase.storage
+            .from(RECEIPT_BUCKET)
+            .createSignedUrl(
+              row.receipt_path,
+              60 * 10
+            );
+
+        if (!signed.error) {
+          receipt =
+            signed.data.signedUrl;
+        }
+      }
+
+      orders.push(
+        formatOrder(row, receipt)
+      );
+    }
+
+    res.json(orders);
+  } catch (error) {
+    console.error(
+      'Orders error:',
+      error
+    );
+
+    res.status(500).json({
+      error: 'orders error'
+    });
+  }
+});
+
+app.patch(
+  '/api/orders/:id',
+  auth,
+  async (req, res) => {
+    try {
+      await ready;
+
+      const allowed = [
+        'new',
+        'paid',
+        'processing',
+        'completed',
+        'cancelled'
+      ];
+
+      if (
+        !allowed.includes(req.body.status)
+      ) {
+        return res.status(400).json({
+          error: 'status'
+        });
+      }
+
+      const result = await pool.query(
+        `
+        UPDATE orders
+        SET
+          status = $1,
+          updated_at = NOW()
+        WHERE id = $2
+        RETURNING *
+        `,
+        [
+          req.body.status,
+          req.params.id
+        ]
+      );
+
+      if (!result.rows[0]) {
+        return res.status(404).json({
+          error: 'not found'
+        });
+      }
+
+      res.json(
+        formatOrder(result.rows[0])
+      );
+    } catch (error) {
+      console.error(error);
+
+      res.status(500).json({
+        error: 'update error'
+      });
+    }
+  }
+);
+
+app.get(
+  '/api/orders/:id/credentials',
+  auth,
+  async (req, res) => {
+    try {
+      await ready;
+
+      const result = await pool.query(
+        `
+        SELECT
+          username,
+          password,
+          expires_at
+        FROM order_secrets
+        WHERE order_id = $1
+        `,
+        [req.params.id]
+      );
+
+      const secret = result.rows[0];
+
+      if (
+        !secret ||
+        new Date(secret.expires_at).getTime() < now()
+      ) {
+        await pool.query(
+          `
+          DELETE FROM order_secrets
+          WHERE order_id = $1
+          `,
+          [req.params.id]
+        );
+
+        return res.status(404).json({
+          error: 'انتهت صلاحية بيانات الدخول'
+        });
+      }
+
+      const resultData = {
+        username: dec(secret.username),
+        password: dec(secret.password)
+      };
+
+      await pool.query(
+        `
+        DELETE FROM order_secrets
+        WHERE order_id = $1
+        `,
+        [req.params.id]
+      );
+
+      res.json(resultData);
+    } catch (error) {
+      console.error(error);
+
+      res.status(500).json({
+        error: 'credential error'
+      });
+    }
+  }
+);
+
+app.get(
+  '/api/admin/stats',
+  auth,
+  async (req, res) => {
+    try {
+      await ready;
+
+      const [orders, visitors] =
+        await Promise.all([
+          pool.query(`
+            SELECT
+              COUNT(*)::int AS total,
+
+              COUNT(*) FILTER (
+                WHERE status = 'new'
+              )::int AS new,
+
+              COUNT(*) FILTER (
+                WHERE status = 'paid'
+              )::int AS paid,
+
+              COUNT(*) FILTER (
+                WHERE status = 'processing'
+              )::int AS processing,
+
+              COUNT(*) FILTER (
+                WHERE status = 'completed'
+              )::int AS completed,
+
+              COUNT(*) FILTER (
+                WHERE status = 'cancelled'
+              )::int AS cancelled
+
+            FROM orders
+          `),
+
+          visitorStats()
+        ]);
+
+      const row = orders.rows[0];
+
+      res.json({
+        visitors,
+        orders: Number(row.total),
+        counts: {
+          new: Number(row.new),
+          paid: Number(row.paid),
+          processing: Number(row.processing),
+          completed: Number(row.completed),
+          cancelled: Number(row.cancelled)
+        }
+      });
+    } catch (error) {
+      console.error(error);
+
+      res.status(500).json({
+        error: 'stats error'
+      });
+    }
+  }
+);
+
+app.get('/api/health', async (req, res) => {
+  try {
+    await ready;
+
+    await pool.query('SELECT 1');
+
+    res.json({
+      ok: true,
+      database: true
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      ok: false,
+      database: false
+    });
+  }
+});
+
+app.get('/admin.html', (req, res) => {
+  res.sendFile(
+    path.join(ROOT, 'admin.html')
+  );
+});
+
+app.get(/.*/, (req, res) => {
+  res.sendFile(
+    path.join(ROOT, 'index.html')
+  );
+});
+
+app.listen(PORT, () => {
+  console.log(
+    `FODEN running on port ${PORT}`
+  );
+});
