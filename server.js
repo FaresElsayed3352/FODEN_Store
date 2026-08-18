@@ -154,6 +154,10 @@ app.get('/api/admin/stats',auth,(req,res)=>{
 });
 app.get('/api/health',(req,res)=>res.json({ok:true}));
 
+app.get('/admin.html',(req,res)=>{
+  res.sendFile(path.join(ROOT,'admin.html'));
+});
+
 app.get(/.*/,(req,res)=>res.sendFile(path.join(ROOT,'index.html')));
 
 app.listen(PORT,()=>console.log(`FODEN running on port ${PORT}`));
