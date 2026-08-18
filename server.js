@@ -7,9 +7,11 @@ const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
-const DATA = path.join(ROOT, 'data');
-const UPLOADS = path.join(ROOT, 'uploads');
-fs.mkdirSync(DATA,{recursive:true}); fs.mkdirSync(UPLOADS,{recursive:true});
+const DATA = path.join('/tmp', 'foden-data');
+const UPLOADS = path.join('/tmp', 'foden-uploads');
+
+fs.mkdirSync(DATA, { recursive: true });
+fs.mkdirSync(UPLOADS, { recursive: true });
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'CHANGE_ME';
 const WHATSAPP = process.env.WHATSAPP_NUMBER || '201020477414';
@@ -40,7 +42,7 @@ for(const k of Object.keys(files)){ if(!fs.existsSync(files[k])) write(k,default
 app.use(express.json({limit:'2mb'}));
 app.use(express.urlencoded({extended:true}));
 app.use('/uploads',express.static(UPLOADS));
-app.use(express.static(path.join(ROOT,'public')));
+app.use(express.static(ROOT));
 
 const upload = multer({
   storage:multer.diskStorage({
@@ -152,6 +154,6 @@ app.get('/api/admin/stats',auth,(req,res)=>{
 });
 app.get('/api/health',(req,res)=>res.json({ok:true}));
 
-app.get(/.*/,(req,res)=>res.sendFile(path.join(ROOT,'public','index.html')));
+app.get(/.*/,(req,res)=>res.sendFile(path.join(ROOT,'index.html')));
 
 app.listen(PORT,()=>console.log(`FODEN running on port ${PORT}`));
