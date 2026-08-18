@@ -45,7 +45,10 @@ if (!connectionString) {
 
 const pool = connectionString
   ? new Pool({
-      connectionString: connectionString.trim(),
+      connectionString: connectionString
+        .trim()
+        .replace(/[?&]sslmode=[^&]*/i, '')
+        .replace(/[?&]sslrootcert=[^&]*/i, ''),
       ssl: {
         rejectUnauthorized: false
       },
