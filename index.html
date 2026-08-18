@@ -1,75 +1,781 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FODEN Store | شحن Free Fire</title>
 <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&family=Tajawal:wght@400;500;700;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+
 <style>
-:root{--bg:#0a0d16;--panel:#121728;--orange:#ff5e2e;--gold:#ffb020;--cyan:#3fd8ff;--text:#eef2fb;--muted:#9aa4c2;--line:rgba(255,255,255,.08)}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse 120% 80% at 50% -10%,rgba(255,94,46,.18),transparent 60%),radial-gradient(ellipse 80% 60% at 90% 20%,rgba(63,216,255,.1),transparent 55%),var(--bg);color:var(--text);font-family:Tajawal,sans-serif}.top{background:linear-gradient(90deg,var(--orange),var(--gold));color:#0a0d16;text-align:center;padding:10px;font-weight:800}header{display:flex;justify-content:space-between;align-items:center;padding:20px 6%;position:sticky;top:0;background:rgba(10,13,22,.8);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);z-index:10}.brand{font:800 22px Almarai}.brand span{color:var(--cyan)}.wa{background:#25d366;color:#fff;padding:11px 18px;border-radius:99px;text-decoration:none;font-weight:800}.hero{text-align:center;padding:65px 6% 35px}.eyebrow{color:var(--cyan);font-weight:800}.hero h1{font:800 clamp(30px,5vw,56px) Almarai;line-height:1.3}.hero h1 span{background:linear-gradient(90deg,var(--gold),var(--orange),#ff2d55);-webkit-background-clip:text;color:transparent}.hero p{color:var(--muted);font-size:17px;line-height:1.9;max-width:650px;margin:auto}.stats{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:22px}.pill{padding:8px 14px;border:1px solid var(--line);border-radius:99px;background:#ffffff06;color:var(--muted);font-size:13px}.pill b{color:var(--text)}.tabs{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:20px}.tabs button{border:1px solid var(--line);background:#ffffff08;color:var(--muted);padding:12px 25px;border-radius:99px;font-weight:800;cursor:pointer}.tabs button.active{background:linear-gradient(135deg,var(--orange),var(--gold));color:#0a0d16}.note{text-align:center;color:var(--muted);margin:0 6% 25px}.grid{max-width:1180px;margin:auto;padding:0 6% 50px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}.card{background:linear-gradient(180deg,var(--panel),#12172866);border:1px solid var(--line);border-radius:18px;padding:22px}.card.best{border-color:var(--orange);box-shadow:0 0 35px #ff5e2e18}.amount{font:700 29px Rajdhani;margin-bottom:14px}.amount small{font:400 14px Tajawal;color:var(--muted)}.price{border-top:1px dashed var(--line);padding-top:14px}.price b{font:700 22px Rajdhani}.order{width:100%;margin-top:15px;padding:12px;border:1px solid #3fd8ff55;background:#3fd8ff10;color:var(--cyan);border-radius:12px;font-weight:800;cursor:pointer}.overlay{display:none;position:fixed;inset:0;background:#05070dcc;backdrop-filter:blur(5px);z-index:50;align-items:center;justify-content:center;padding:20px}.overlay.show{display:flex}.modal{width:min(450px,100%);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:25px}.modal input{width:100%;padding:12px;margin-top:10px;border-radius:10px;border:1px solid var(--line);background:#0d1120;color:var(--text);font:inherit}.submit{width:100%;margin-top:15px;padding:13px;border:0;border-radius:99px;background:#25d366;color:#fff;font-weight:900;cursor:pointer}.close{width:100%;margin-top:10px;padding:11px;border-radius:10px;border:1px solid var(--line);background:none;color:var(--muted)}footer{text-align:center;padding:30px 6%;border-top:1px solid var(--line);color:var(--muted);line-height:2;font-size:13px}
+:root{
+  --bg:#0a0d16;
+  --panel:#121728;
+  --orange:#ff5e2e;
+  --gold:#ffb020;
+  --cyan:#3fd8ff;
+  --text:#eef2fb;
+  --muted:#9aa4c2;
+  --line:rgba(255,255,255,.08)
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -10%,rgba(255,94,46,.18),transparent 60%),
+    radial-gradient(ellipse 80% 60% at 90% 20%,rgba(63,216,255,.1),transparent 55%),
+    var(--bg);
+  color:var(--text);
+  font-family:Tajawal,sans-serif
+}
+
+.top{
+  background:linear-gradient(90deg,var(--orange),var(--gold));
+  color:#0a0d16;
+  text-align:center;
+  padding:10px;
+  font-weight:800
+}
+
+header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:20px 6%;
+  position:sticky;
+  top:0;
+  background:rgba(10,13,22,.8);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+  z-index:10
+}
+
+.brand{font:800 22px Almarai}
+.brand span{color:var(--cyan)}
+
+.wa{
+  background:#25d366;
+  color:#fff;
+  padding:11px 18px;
+  border-radius:99px;
+  text-decoration:none;
+  font-weight:800
+}
+
+.hero{
+  text-align:center;
+  padding:65px 6% 35px
+}
+
+.eyebrow{
+  color:var(--cyan);
+  font-weight:800
+}
+
+.hero h1{
+  font:800 clamp(30px,5vw,56px) Almarai;
+  line-height:1.3
+}
+
+.hero h1 span{
+  background:linear-gradient(90deg,var(--gold),var(--orange),#ff2d55);
+  -webkit-background-clip:text;
+  color:transparent
+}
+
+.hero p{
+  color:var(--muted);
+  font-size:17px;
+  line-height:1.9;
+  max-width:650px;
+  margin:auto
+}
+
+.stats{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:22px
+}
+
+.pill{
+  padding:8px 14px;
+  border:1px solid var(--line);
+  border-radius:99px;
+  background:#ffffff06;
+  color:var(--muted);
+  font-size:13px
+}
+
+.pill b{color:var(--text)}
+
+.tabs{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  flex-wrap:wrap;
+  margin:20px
+}
+
+.tabs button{
+  border:1px solid var(--line);
+  background:#ffffff08;
+  color:var(--muted);
+  padding:12px 25px;
+  border-radius:99px;
+  font-weight:800;
+  cursor:pointer
+}
+
+.tabs button.active{
+  background:linear-gradient(135deg,var(--orange),var(--gold));
+  color:#0a0d16
+}
+
+.note{
+  text-align:center;
+  color:var(--muted);
+  margin:0 6% 25px
+}
+
+.grid{
+  max-width:1180px;
+  margin:auto;
+  padding:0 6% 50px;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:18px
+}
+
+.card{
+  background:linear-gradient(180deg,var(--panel),#12172866);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:22px
+}
+
+.card.best{
+  border-color:var(--orange);
+  box-shadow:0 0 35px #ff5e2e18
+}
+
+.amount{
+  font:700 29px Rajdhani;
+  margin-bottom:14px
+}
+
+.amount small{
+  font:400 14px Tajawal;
+  color:var(--muted)
+}
+
+.price{
+  border-top:1px dashed var(--line);
+  padding-top:14px
+}
+
+.price b{
+  font:700 22px Rajdhani
+}
+
+.order{
+  width:100%;
+  margin-top:15px;
+  padding:12px;
+  border:1px solid #3fd8ff55;
+  background:#3fd8ff10;
+  color:var(--cyan);
+  border-radius:12px;
+  font-weight:800;
+  cursor:pointer
+}
+
+.overlay{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:#05070dcc;
+  backdrop-filter:blur(5px);
+  z-index:50;
+  align-items:center;
+  justify-content:center;
+  padding:20px
+}
+
+.overlay.show{display:flex}
+
+.modal{
+  width:min(450px,100%);
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:25px
+}
+
+.modal input{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border-radius:10px;
+  border:1px solid var(--line);
+  background:#0d1120;
+  color:var(--text);
+  font:inherit
+}
+
+.submit{
+  width:100%;
+  margin-top:15px;
+  padding:13px;
+  border:0;
+  border-radius:99px;
+  background:#25d366;
+  color:#fff;
+  font-weight:900;
+  cursor:pointer
+}
+
+.close{
+  width:100%;
+  margin-top:10px;
+  padding:11px;
+  border-radius:10px;
+  border:1px solid var(--line);
+  background:none;
+  color:var(--muted)
+}
+
+footer{
+  text-align:center;
+  padding:30px 6%;
+  border-top:1px solid var(--line);
+  color:var(--muted);
+  line-height:2;
+  font-size:13px
+}
 </style>
 </head>
-<body>
-<div class="top">🛡️ FODEN Store — شحن بالـ UID أو الحساب • دعم واتساب</div>
-<header><div class="brand">FOD<span>EN</span></div><a class="wa" href="https://wa.me/201020477414" target="_blank">💬 واتساب</a></header>
-<section class="hero">
-<div class="eyebrow">⚡ شحن سريع • أسعار واضحة • متابعة الطلب</div>
-<h1>اشحن جواهرك في <span>فري فاير</span><br>من متجر FODEN</h1>
-<p>اختار طريقة الشحن، أنشئ طلبك، وارفع إثبات التحويل. طلبك يصل للإدارة وتقدر تتابع حالته.</p>
-<div class="stats">
-<div class="pill">🟢 الآن <b id="online">0</b> على الموقع</div>
-<div class="pill">👥 زيارات اليوم <b id="today">0</b></div>
-</div>
-</section>
-<div class="tabs"><button id="idTab" class="active">🆔 شحن بالـ UID / ID</button><button id="accTab">👤 شحن الحساب</button></div>
-<div class="note" id="note">الشحن بالـ UID فقط — بدون كلمة مرور.</div>
-<div class="grid" id="grid"></div>
-<footer>© 2026 FODEN Store — متجر إعادة شحن غير رسمي وغير تابع لشركة Garena.<br>لا تشارك كلمة مرورك إلا إذا اخترت خدمة الشحن عبر الحساب وكنت موافقًا على طريقة التنفيذ.</footer>
 
-<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+<body>
+
+<div class="top">
+  🛡️ FODEN Store — شحن بالـ UID أو الحساب • دعم واتساب
+</div>
+
+<header>
+  <div class="brand">FOD<span>EN</span></div>
+  <a class="wa" href="https://wa.me/201020477414" target="_blank">💬 واتساب</a>
+</header>
+
+<section class="hero">
+
+  <div class="eyebrow">
+    ⚡ شحن سريع • أسعار واضحة • متابعة الطلب
+  </div>
+
+  <h1>
+    اشحن جواهرك في <span>فري فاير</span><br>
+    من متجر FODEN
+  </h1>
+
+  <p>
+    اختار طريقة الشحن، أنشئ طلبك، وارفع إثبات التحويل.
+    طلبك يصل للإدارة وتقدر تتابع حالته.
+  </p>
+
+  <div class="stats">
+    <div class="pill">
+      🟢 الآن <b id="online">0</b> على الموقع
+    </div>
+
+    <div class="pill">
+      👥 زيارات اليوم <b id="today">0</b>
+    </div>
+  </div>
+
+</section>
+
+<div class="tabs">
+  <button id="idTab" class="active">
+    🆔 شحن بالـ UID / ID
+  </button>
+
+  <button id="accTab">
+    👤 شحن الحساب
+  </button>
+</div>
+
+<div class="note" id="note">
+  الشحن بالـ UID فقط — بدون كلمة مرور.
+</div>
+
+<div class="grid" id="grid"></div>
+
+<footer>
+  © 2026 FODEN Store — متجر إعادة شحن غير رسمي وغير تابع لشركة Garena.<br>
+  لا تشارك كلمة مرورك إلا إذا اخترت خدمة الشحن عبر الحساب وكنت موافقًا على طريقة التنفيذ.
+</footer>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+
 <script>
-let type='id', packages=[];
-const grid=document.getElementById('grid'), note=document.getElementById('note');
+
+let type = 'id';
+let packages = [];
+
+const grid = document.getElementById('grid');
+const note = document.getElementById('note');
+const overlay = document.getElementById('overlay');
+const online = document.getElementById('online');
+const today = document.getElementById('today');
+
+
+/* =========================
+   LOAD PACKAGES
+========================= */
+
 async function load(){
- const r=await fetch('/api/packages'); packages=await r.json(); render();
+
+  try{
+
+    const r = await fetch('/api/packages', {
+      cache: 'no-store'
+    });
+
+    if(!r.ok){
+      throw new Error('HTTP ' + r.status);
+    }
+
+    const data = await r.json();
+
+    if(!Array.isArray(data)){
+      throw new Error('Invalid packages response');
+    }
+
+    packages = data;
+
+    render();
+
+  }catch(error){
+
+    console.error('Packages load error:', error);
+
+    grid.innerHTML = `
+      <div style="
+        grid-column:1/-1;
+        text-align:center;
+        padding:40px;
+        color:#ff6b6b
+      ">
+        تعذر تحميل باقات الجواهر حالياً.
+        <br>
+        <small style="color:#9aa4c2">
+          حاول تحديث الصفحة.
+        </small>
+      </div>
+    `;
+
+  }
+
 }
+
+
+/* =========================
+   RENDER PACKAGES
+========================= */
+
 function render(){
- const list=packages.filter(p=>p.type===type);
- grid.innerHTML=list.map((p,i)=>`<div class="card ${i===Math.floor(list.length/2)?'best':''}">
-<div class="amount">${p.diamonds.toLocaleString('en-US')} <small>جوهرة</small></div>
-<div class="price"><b>${p.price} ج.م</b></div>
-<button class="order" onclick="openOrder(${JSON.stringify(p).replaceAll('"','&quot;')})">اطلب دلوقتي</button>
-</div>`).join('');
- note.textContent=type==='id'?'الشحن بالـ UID فقط — بدون كلمة مرور.':'الشحن عبر بيانات الحساب — لا يتم حفظ كلمة المرور كنص واضح.';
+
+  const list = packages.filter(
+    p => String(p.type) === type
+  );
+
+  if(!list.length){
+
+    grid.innerHTML = `
+      <div style="
+        grid-column:1/-1;
+        text-align:center;
+        padding:40px;
+        color:#9aa4c2
+      ">
+        لا توجد باقات متاحة حالياً.
+      </div>
+    `;
+
+    return;
+  }
+
+  grid.innerHTML = list.map((p,i) => `
+
+    <div class="card ${i === Math.floor(list.length / 2) ? 'best' : ''}">
+
+      <div class="amount">
+        ${Number(p.diamonds).toLocaleString('en-US')}
+        <small>جوهرة</small>
+      </div>
+
+      <div class="price">
+        <b>
+          ${Number(p.price).toLocaleString('en-US')} ج.م
+        </b>
+      </div>
+
+      <button
+        class="order"
+        data-index="${i}"
+      >
+        اطلب دلوقتي
+      </button>
+
+    </div>
+
+  `).join('');
+
+  grid.querySelectorAll('.order').forEach(
+    (button,index) => {
+
+      button.addEventListener(
+        'click',
+        () => openOrder(list[index])
+      );
+
+    }
+  );
+
+  note.textContent =
+    type === 'id'
+      ? 'الشحن بالـ UID فقط — بدون كلمة مرور.'
+      : 'الشحن عبر بيانات الحساب — لا يتم حفظ كلمة المرور كنص واضح.';
+
 }
-document.getElementById('idTab').onclick=()=>{type='id';idTab.classList.add('active');accTab.classList.remove('active');render()}
-document.getElementById('accTab').onclick=()=>{type='account';accTab.classList.add('active');idTab.classList.remove('active');render()}
+
+
+/* =========================
+   TABS
+========================= */
+
+document.getElementById('idTab').onclick = () => {
+
+  type = 'id';
+
+  document.getElementById('idTab')
+    .classList.add('active');
+
+  document.getElementById('accTab')
+    .classList.remove('active');
+
+  render();
+
+};
+
+
+document.getElementById('accTab').onclick = () => {
+
+  type = 'account';
+
+  document.getElementById('accTab')
+    .classList.add('active');
+
+  document.getElementById('idTab')
+    .classList.remove('active');
+
+  render();
+
+};
+
+
+/* =========================
+   ORDER MODAL
+========================= */
+
 function openOrder(p){
- document.getElementById('modal').innerHTML=`
- <h2>🛒 طلب ${p.diamonds.toLocaleString()} جوهرة</h2>
- <p style="color:#9aa4c2">الإجمالي: <b style="color:#ffb020">${p.price} ج.م</b></p>
- ${type==='id'?'<input id="playerId" placeholder="UID / ID اللاعب">':'<input id="username" placeholder="اسم المستخدم أو البريد"><input id="password" type="password" placeholder="كلمة المرور">'}
- <input id="customerName" placeholder="اسمك (اختياري)">
- <input id="receipt" type="file" accept="image/jpeg,image/png,image/webp" style="padding:9px">
- <p style="color:#9aa4c2;font-size:12px;line-height:1.7">يمكنك رفع صورة إثبات التحويل. الحد الأقصى 5MB.</p>
- <button class="submit" onclick='sendOrder(${JSON.stringify(p)})'>إرسال الطلب ومتابعة واتساب</button>
- <button class="close" onclick="overlay.classList.remove('show')">إلغاء</button>`;
- overlay.classList.add('show');
+
+  document.getElementById('modal').innerHTML = `
+
+    <h2>
+      🛒 طلب ${Number(p.diamonds).toLocaleString()} جوهرة
+    </h2>
+
+    <p style="color:#9aa4c2">
+      الإجمالي:
+      <b style="color:#ffb020">
+        ${Number(p.price).toLocaleString()} ج.م
+      </b>
+    </p>
+
+    ${
+      type === 'id'
+        ? `
+          <input
+            id="playerId"
+            placeholder="UID / ID اللاعب"
+          >
+        `
+        : `
+          <input
+            id="username"
+            placeholder="اسم المستخدم أو البريد"
+          >
+
+          <input
+            id="password"
+            type="password"
+            placeholder="كلمة المرور"
+          >
+        `
+    }
+
+    <input
+      id="customerName"
+      placeholder="اسمك (اختياري)"
+    >
+
+    <input
+      id="receipt"
+      type="file"
+      accept="image/jpeg,image/png,image/webp"
+      style="padding:9px"
+    >
+
+    <p style="
+      color:#9aa4c2;
+      font-size:12px;
+      line-height:1.7
+    ">
+      يمكنك رفع صورة إثبات التحويل.
+      الحد الأقصى 5MB.
+    </p>
+
+    <button
+      class="submit"
+      id="sendOrderButton"
+    >
+      إرسال الطلب ومتابعة واتساب
+    </button>
+
+    <button
+      class="close"
+      id="closeModalButton"
+    >
+      إلغاء
+    </button>
+  `;
+
+  overlay.classList.add('show');
+
+  document.getElementById('sendOrderButton')
+    .onclick = () => sendOrder(p);
+
+  document.getElementById('closeModalButton')
+    .onclick = () => overlay.classList.remove('show');
+
 }
+
+
+/* =========================
+   SEND ORDER
+========================= */
+
 async function sendOrder(p){
- const fd=new FormData();fd.append('type',type);fd.append('diamonds',p.diamonds);fd.append('price',p.price);
- fd.append('customerName',document.getElementById('customerName').value);
- if(type==='id'){const v=document.getElementById('playerId').value.trim();if(!v)return alert('أدخل UID / ID');fd.append('playerId',v)}
- else{const u=document.getElementById('username').value.trim(),pw=document.getElementById('password').value;if(!u||!pw)return alert('أدخل بيانات الحساب');fd.append('username',u);fd.append('password',pw)}
- const f=document.getElementById('receipt').files[0];if(f)fd.append('receipt',f);
- const r=await fetch('/api/orders',{method:'POST',body:fd});const j=await r.json();
- if(!r.ok)return alert(j.error||'حدث خطأ');
- overlay.classList.remove('show'); window.open(j.whatsapp,'_blank'); alert('تم إنشاء طلبك: '+j.orderId);
+
+  try{
+
+    const fd = new FormData();
+
+    fd.append('type', type);
+    fd.append('diamonds', p.diamonds);
+    fd.append('price', p.price);
+
+    fd.append(
+      'customerName',
+      document.getElementById('customerName').value
+    );
+
+    if(type === 'id'){
+
+      const v =
+        document.getElementById('playerId')
+          .value
+          .trim();
+
+      if(!v){
+        return alert('أدخل UID / ID');
+      }
+
+      fd.append('playerId', v);
+
+    }else{
+
+      const u =
+        document.getElementById('username')
+          .value
+          .trim();
+
+      const pw =
+        document.getElementById('password')
+          .value;
+
+      if(!u || !pw){
+        return alert('أدخل بيانات الحساب');
+      }
+
+      fd.append('username', u);
+      fd.append('password', pw);
+
+    }
+
+    const f =
+      document.getElementById('receipt')
+        .files[0];
+
+    if(f){
+      fd.append('receipt', f);
+    }
+
+    const r = await fetch(
+      '/api/orders',
+      {
+        method:'POST',
+        body:fd
+      }
+    );
+
+    const j = await r.json();
+
+    if(!r.ok){
+      return alert(
+        j.error || 'حدث خطأ'
+      );
+    }
+
+    overlay.classList.remove('show');
+
+    window.open(
+      j.whatsapp,
+      '_blank'
+    );
+
+    alert(
+      'تم إنشاء طلبك: ' +
+      j.orderId
+    );
+
+  }catch(error){
+
+    console.error(
+      'Order error:',
+      error
+    );
+
+    alert(
+      'حدث خطأ في الاتصال بالسيرفر'
+    );
+
+  }
+
 }
-const visitorKey='foden_vid';let vid=localStorage.getItem(visitorKey);
-if(!vid){vid=crypto.randomUUID();localStorage.setItem(visitorKey,vid)}
-async function beat(){try{const r=await fetch('/api/visitor/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:vid})});const s=await r.json();online.textContent=s.online;today.textContent=s.today}catch{}}
-beat();setInterval(beat,15000);addEventListener('pagehide',()=>navigator.sendBeacon('/api/visitor/exit',new Blob([JSON.stringify({id:vid})],{type:'application/json'})));
+
+
+/* =========================
+   VISITORS
+========================= */
+
+const visitorKey = 'foden_vid';
+
+let vid =
+  localStorage.getItem(visitorKey);
+
+if(!vid){
+
+  vid = crypto.randomUUID();
+
+  localStorage.setItem(
+    visitorKey,
+    vid
+  );
+
+}
+
+
+async function beat(){
+
+  try{
+
+    const r = await fetch(
+      '/api/visitor/heartbeat',
+      {
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json'
+        },
+        body:JSON.stringify({
+          id:vid
+        })
+      }
+    );
+
+    const s = await r.json();
+
+    online.textContent =
+      Number(s.online || 0);
+
+    today.textContent =
+      Number(s.today || 0);
+
+  }catch(error){
+
+    console.error(
+      'Visitor heartbeat error:',
+      error
+    );
+
+  }
+
+}
+
+
+beat();
+
+setInterval(
+  beat,
+  15000
+);
+
+
+addEventListener(
+  'pagehide',
+  () => {
+
+    navigator.sendBeacon(
+      '/api/visitor/exit',
+      new Blob(
+        [
+          JSON.stringify({
+            id:vid
+          })
+        ],
+        {
+          type:'application/json'
+        }
+      )
+    );
+
+  }
+);
+
+
+/* =========================
+   START
+========================= */
+
 load();
+
 </script>
-</body></html>
+
+</body>
+</html>
