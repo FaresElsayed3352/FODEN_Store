@@ -7,50 +7,32 @@ const { Pool } = require('pg');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
-
-const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 
-const ADMIN_TOKEN =
-  process.env.ADMIN_TOKEN || 'CHANGE_ME';
+/* =========================================================
+   ENV
+   ========================================================= */
 
-const WHATSAPP =
-  process.env.WHATSAPP_NUMBER || '201020477414';
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'CHANGE_ME';
+const WHATSAPP = process.env.WHATSAPP_NUMBER || '201020477414';
 
-const CREDENTIAL_KEY =
-  process.env.CREDENTIAL_KEY || '';
-
-const KEY =
-  Buffer.from(CREDENTIAL_KEY, 'base64');
-
-const SUPABASE_URL =
-  process.env.SUPABASE_URL;
-
+const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const RECEIPT_BUCKET = 'receipts';
 
+const KEY = Buffer.from(
+  process.env.CREDENTIAL_KEY || '',
+  'base64'
+);
 
 /* =========================================================
    SUPABASE
    ========================================================= */
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.warn(
-    'WARNING: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing.'
-  );
-}
-
-if (KEY.length !== 32) {
-  console.warn(
-    'WARNING: CREDENTIAL_KEY must decode to exactly 32 bytes.'
-  );
-}
-
 const supabase =
-  SUPABASE_URL &&
-  SUPABASE_SERVICE_ROLE_KEY
+  SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
     ? createClient(
         SUPABASE_URL,
         SUPABASE_SERVICE_ROLE_KEY,
@@ -63,7 +45,6 @@ const supabase =
       )
     : null;
 
-
 /* =========================================================
    DATABASE
    ========================================================= */
@@ -72,337 +53,142 @@ const rawConnectionString =
   process.env.POSTGRES_PRISMA_URL ||
   process.env.POSTGRES_URL ||
   process.env.POSTGRES_URL_NON_POOLING ||
-  process.env.DATABASE_URL;
+  process.env.DATABASE_URL ||
+  null;
 
-if (!rawConnectionString) {
-  console.warn(
-    'WARNING: No PostgreSQL connection string found.'
-  );
-}
+/*
+  IMPORTANT:
+  Remove SSL query parameters from the connection URL.
+  SSL is configured explicitly below.
+*/
 
-let connectionString =
-  rawConnectionString || null;
+const connectionString = rawConnectionString
+  ? rawConnectionString
+      .replace(/[?&]sslmode=[^&]*/gi, '')
+      .replace(/[?&]pgbouncer=[^&]*/gi, '')
+      .replace(/[?&]supa=[^&]*/gi, '')
+  : null;
 
-if (connectionString) {
-  try {
-    const url =
-      new URL(connectionString);
+const pool = connectionString
+  ? new Pool({
+      connectionString,
 
-    /*
-      node-postgres can let SSL parameters from the
-      connection string override the explicit SSL config.
+      ssl: {
+        rejectUnauthorized: false
+      },
 
-      We remove them and control SSL below.
-    */
-
-    url.searchParams.delete(
-      'sslmode'
-    );
-
-    url.searchParams.delete(
-      'sslrootcert'
-    );
-
-    url.searchParams.delete(
-      'sslcert'
-    );
-
-    url.searchParams.delete(
-      'sslkey'
-    );
-
-    url.searchParams.delete(
-      'pgbouncer'
-    );
-
-    url.searchParams.delete(
-      'supa'
-    );
-
-    connectionString =
-      url.toString();
-
-  } catch (error) {
-    console.error(
-      'Invalid PostgreSQL connection string:',
-      error
-    );
-  }
-}
-
-const pool =
-  connectionString
-    ? new Pool({
-        connectionString,
-
-        /*
-          Fix for the certificate-chain error
-          that appeared in the Vercel runtime.
-        */
-        ssl: {
-          rejectUnauthorized: false
-        },
-
-        max: 2,
-
-        idleTimeoutMillis:
-          10000,
-
-        connectionTimeoutMillis:
-          10000
-      })
-    : null;
-
+      max: 3,
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 15000
+    })
+  : null;
 
 /* =========================================================
-   DEFAULT PACKAGES
-   =========================================================
-
-   الأسعار مأخوذة من الصورة التي أرسلتها:
-
-   ID:
-   110  = 60
-   231  = 120
-   341  = 165
-   460  = 220
-   583  = 270
-   1040 = 470
-   1188 = 540
-   2002 = 900
-   2420 = 1050
-   3000 = 1350
-   5000 = 2190
-   5600 = 2450
-
-   Account:
-   110  = 55
-   310  = 145
-   520  = 220
-   1060 = 380
-   2180 = 760
-   3240 = 1140
-   5600 = 1850
-   11200 = 3700
+   DATABASE READY
    ========================================================= */
 
-const defaultPackages = {
-  id: [
-    [110, 60],
-    [231, 120],
-    [341, 165],
-    [460, 220],
-    [583, 270],
-    [1040, 470],
-    [1188, 540],
-    [2002, 900],
-    [2420, 1050],
-    [3000, 1350],
-    [5000, 2190],
-    [5600, 2450]
-  ],
-
-  account: [
-    [110, 55],
-    [310, 145],
-    [520, 220],
-    [1060, 380],
-    [2180, 760],
-    [3240, 1140],
-    [5600, 1850],
-    [11200, 3700]
-  ]
-};
-
-
-/* =========================================================
-   DATABASE INITIALIZATION
-   ========================================================= */
+let databaseReady = null;
+let databaseError = null;
 
 async function initDatabase() {
   if (!pool) {
     throw new Error(
-      'Database is not configured.'
+      'No PostgreSQL connection string configured.'
     );
   }
 
-  /*
-    Test connection first.
-  */
-
-  await pool.query(
-    'SELECT 1'
-  );
-
-  /*
-    Create tables.
-  */
+  await pool.query('SELECT 1');
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS orders (
       id TEXT PRIMARY KEY,
-
       type TEXT NOT NULL
-        CHECK (
-          type IN ('id', 'account')
-        ),
-
+        CHECK (type IN ('id','account')),
       diamonds INTEGER NOT NULL,
-
       price NUMERIC NOT NULL,
-
       player_id TEXT DEFAULT '',
-
       customer_name TEXT DEFAULT '',
-
       receipt_path TEXT,
-
-      status TEXT NOT NULL
-        DEFAULT 'new',
-
-      has_credentials BOOLEAN NOT NULL
-        DEFAULT FALSE,
-
-      created_at TIMESTAMPTZ NOT NULL
-        DEFAULT NOW(),
-
+      status TEXT NOT NULL DEFAULT 'new',
+      has_credentials BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ
-    )
-  `);
+    );
 
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS order_secrets (
       order_id TEXT PRIMARY KEY
         REFERENCES orders(id)
         ON DELETE CASCADE,
-
       username JSONB NOT NULL,
-
       password JSONB NOT NULL,
-
       expires_at TIMESTAMPTZ NOT NULL
-    )
-  `);
+    );
 
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS visitors (
       id TEXT PRIMARY KEY,
-
-      first_seen TIMESTAMPTZ NOT NULL
-        DEFAULT NOW(),
-
-      last_seen TIMESTAMPTZ NOT NULL
-        DEFAULT NOW(),
-
+      first_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       exited_at TIMESTAMPTZ
-    )
-  `);
+    );
 
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS packages (
       id BIGSERIAL PRIMARY KEY,
-
       type TEXT NOT NULL
-        CHECK (
-          type IN ('id', 'account')
-        ),
-
+        CHECK (type IN ('id','account')),
       diamonds INTEGER NOT NULL,
-
       price NUMERIC NOT NULL,
-
-      active BOOLEAN NOT NULL
-        DEFAULT TRUE
-    )
+      active BOOLEAN NOT NULL DEFAULT TRUE
+    );
   `);
 
-
   /* =======================================================
-     PACKAGE SYNC
-     =======================================================
-
-     بدل الاعتماد على COUNT فقط، نقوم بمزامنة القائمة
-     الصحيحة حتى تختفي الباقات القديمة أو الناقصة.
+     DEFAULT PACKAGES
      ======================================================= */
 
-  await pool.query(
-    'BEGIN'
+  const countResult = await pool.query(
+    'SELECT COUNT(*)::int AS count FROM packages'
   );
 
-  try {
-    await pool.query(
-      'DELETE FROM packages'
-    );
+  if (countResult.rows[0].count === 0) {
+    const packages = [
 
-    for (
-      const [diamonds, price]
-      of defaultPackages.id
-    ) {
+      /* ID */
+      ['id', 110, 60],
+      ['id', 231, 120],
+      ['id', 341, 165],
+      ['id', 460, 220],
+      ['id', 583, 270],
+      ['id', 1040, 470],
+      ['id', 1188, 540],
+      ['id', 2002, 900],
+      ['id', 2420, 1050],
+      ['id', 3000, 1350],
+      ['id', 5000, 2190],
+      ['id', 5600, 2450],
+
+      /* ACCOUNT */
+      ['account', 110, 55],
+      ['account', 310, 145],
+      ['account', 520, 220],
+      ['account', 1060, 380],
+      ['account', 2180, 760],
+      ['account', 3240, 1140],
+      ['account', 5600, 1850],
+      ['account', 11200, 3700]
+    ];
+
+    for (const [type, diamonds, price] of packages) {
       await pool.query(
         `
         INSERT INTO packages
-          (
-            type,
-            diamonds,
-            price,
-            active
-          )
+          (type, diamonds, price, active)
         VALUES
-          (
-            $1,
-            $2,
-            $3,
-            TRUE
-          )
+          ($1, $2, $3, TRUE)
         `,
-        [
-          'id',
-          diamonds,
-          price
-        ]
+        [type, diamonds, price]
       );
     }
-
-    for (
-      const [diamonds, price]
-      of defaultPackages.account
-    ) {
-      await pool.query(
-        `
-        INSERT INTO packages
-          (
-            type,
-            diamonds,
-            price,
-            active
-          )
-        VALUES
-          (
-            $1,
-            $2,
-            $3,
-            TRUE
-          )
-        `,
-        [
-          'account',
-          diamonds,
-          price
-        ]
-      );
-    }
-
-    await pool.query(
-      'COMMIT'
-    );
-
-  } catch (error) {
-    await pool.query(
-      'ROLLBACK'
-    );
-
-    throw error;
   }
-
 
   /* =======================================================
      SUPABASE STORAGE
@@ -410,94 +196,84 @@ async function initDatabase() {
 
   if (supabase) {
     try {
-      const {
-        data: buckets,
-        error: listError
-      } =
-        await supabase.storage
-          .listBuckets();
-
-      if (listError) {
-        console.error(
-          'Storage list error:',
-          listError.message
+      const { data: bucket } =
+        await supabase.storage.getBucket(
+          RECEIPT_BUCKET
         );
-      } else {
-        const exists =
-          buckets?.some(
-            (bucket) =>
-              bucket.name ===
-              RECEIPT_BUCKET
+
+      if (!bucket) {
+        const { error } =
+          await supabase.storage.createBucket(
+            RECEIPT_BUCKET,
+            {
+              public: false,
+              allowedMimeTypes: [
+                'image/jpeg',
+                'image/png',
+                'image/webp'
+              ],
+              fileSizeLimit: 5 * 1024 * 1024
+            }
           );
 
-        if (!exists) {
-          const {
-            error: createError
-          } =
-            await supabase.storage
-              .createBucket(
-                RECEIPT_BUCKET,
-                {
-                  public: false,
-
-                  allowedMimeTypes: [
-                    'image/jpeg',
-                    'image/png',
-                    'image/webp'
-                  ],
-
-                  fileSizeLimit:
-                    5 * 1024 * 1024
-                }
-              );
-
-          if (
-            createError &&
-            !/already exists/i.test(
-              createError.message ||
-                ''
-            )
-          ) {
-            console.error(
-              'Storage bucket error:',
-              createError.message
-            );
-          }
+        if (
+          error &&
+          !/already exists/i.test(
+            error.message || ''
+          )
+        ) {
+          console.error(
+            'Storage bucket error:',
+            error.message
+          );
         }
       }
-
     } catch (error) {
       console.error(
         'Storage initialization error:',
-        error
+        error.message
       );
     }
   }
 
-  console.log(
-    'Database initialized successfully.'
-  );
-
   return true;
 }
 
-
 /*
-  Initialize once per serverless instance.
+  IMPORTANT:
+  Do NOT throw an unhandled rejected promise here.
 */
 
-const ready =
-  initDatabase().catch(
-    (error) => {
+async function ensureDatabase() {
+  if (databaseReady) {
+    return databaseReady;
+  }
+
+  databaseReady = initDatabase()
+    .then(() => {
+      databaseError = null;
+      console.log('Database ready.');
+      return true;
+    })
+    .catch((error) => {
+      databaseError = error;
+
       console.error(
         'Database initialization failed:',
-        error
+        error.message
       );
 
-      throw error;
-    }
-  );
+      /*
+        Do not kill the Vercel function.
+        The individual API endpoint will return
+        a controlled 500 response.
+      */
 
+      return false;
+    });
+
+  return databaseReady;
+}
 
 /* =========================================================
    MIDDLEWARE
@@ -519,65 +295,71 @@ app.use(
   express.static(ROOT)
 );
 
-
 /* =========================================================
    UPLOAD
    ========================================================= */
 
-const upload =
-  multer({
-    storage:
-      multer.memoryStorage(),
+const upload = multer({
+  storage: multer.memoryStorage(),
 
-    limits: {
-      fileSize:
-        5 * 1024 * 1024
-    },
+  limits: {
+    fileSize: 5 * 1024 * 1024
+  },
 
-    fileFilter: (
-      _,
-      file,
-      cb
-    ) => {
-      const allowed =
-        /^image\/(jpeg|png|webp)$/
-          .test(
-            file.mimetype
-          );
-
+  fileFilter: (_, file, cb) => {
+    if (
+      /^image\/(jpeg|png|webp)$/.test(
+        file.mimetype
+      )
+    ) {
+      cb(null, true);
+    } else {
       cb(
-        null,
-        allowed
+        new Error(
+          'Only JPEG, PNG and WEBP images are allowed.'
+        )
       );
     }
-  });
-
+  }
+});
 
 /* =========================================================
-   AUTH
+   DATABASE GUARD
    ========================================================= */
 
-function auth(
-  req,
-  res,
-  next
-) {
-  if (
-    !ADMIN_TOKEN ||
-    req.headers.authorization !==
-      `Bearer ${ADMIN_TOKEN}`
-  ) {
-    return res
-      .status(401)
-      .json({
-        error:
-          'unauthorized'
-      });
+async function dbRequired(req, res, next) {
+  const ok = await ensureDatabase();
+
+  if (!ok || !pool) {
+    return res.status(503).json({
+      error: 'database_unavailable',
+      message:
+        'Database connection is unavailable.'
+    });
   }
 
   next();
 }
 
+/* =========================================================
+   AUTH
+   ========================================================= */
+
+function auth(req, res, next) {
+  const token =
+    req.headers.authorization || '';
+
+  if (
+    !ADMIN_TOKEN ||
+    token !== `Bearer ${ADMIN_TOKEN}`
+  ) {
+    return res.status(401).json({
+      error: 'unauthorized'
+    });
+  }
+
+  next();
+}
 
 /* =========================================================
    ENCRYPTION
@@ -587,59 +369,42 @@ function now() {
   return Date.now();
 }
 
-
 function enc(value) {
   if (KEY.length !== 32) {
     throw new Error(
-      'CREDENTIAL_KEY not configured'
+      'CREDENTIAL_KEY must decode to exactly 32 bytes.'
     );
   }
 
-  const iv =
-    crypto.randomBytes(12);
+  const iv = crypto.randomBytes(12);
 
-  const cipher =
-    crypto.createCipheriv(
-      'aes-256-gcm',
-      KEY,
-      iv
-    );
+  const cipher = crypto.createCipheriv(
+    'aes-256-gcm',
+    KEY,
+    iv
+  );
 
-  const data =
-    Buffer.concat([
-      cipher.update(
-        String(value),
-        'utf8'
-      ),
-
-      cipher.final()
-    ]);
+  const data = Buffer.concat([
+    cipher.update(
+      String(value),
+      'utf8'
+    ),
+    cipher.final()
+  ]);
 
   return {
-    iv:
-      iv.toString(
-        'base64'
-      ),
-
-    data:
-      data.toString(
-        'base64'
-      ),
-
-    tag:
-      cipher
-        .getAuthTag()
-        .toString(
-          'base64'
-        )
+    iv: iv.toString('base64'),
+    data: data.toString('base64'),
+    tag: cipher
+      .getAuthTag()
+      .toString('base64')
   };
 }
-
 
 function dec(value) {
   if (KEY.length !== 32) {
     throw new Error(
-      'CREDENTIAL_KEY not configured'
+      'CREDENTIAL_KEY must decode to exactly 32 bytes.'
     );
   }
 
@@ -667,13 +432,9 @@ function dec(value) {
         'base64'
       )
     ),
-
     decipher.final()
-  ]).toString(
-    'utf8'
-  );
+  ]).toString('utf8');
 }
-
 
 /* =========================================================
    ORDER ID
@@ -693,48 +454,46 @@ function newOrderId() {
   );
 }
 
-
 /* =========================================================
    VISITOR STATS
    ========================================================= */
 
 async function visitorStats() {
-  await ready;
+  await ensureDatabase();
 
-  const result =
-    await pool.query(`
-      SELECT
+  if (!pool || databaseError) {
+    return {
+      online: 0,
+      total: 0,
+      today: 0,
+      exited: 0
+    };
+  }
 
-        COUNT(*) FILTER (
-          WHERE last_seen >
-            NOW() -
-            INTERVAL '35 seconds'
-        )::int AS online,
+  const result = await pool.query(`
+    SELECT
+      COUNT(*) FILTER (
+        WHERE last_seen >
+          NOW() - INTERVAL '35 seconds'
+      )::int AS online,
 
-        COUNT(*)::int AS total,
+      COUNT(*)::int AS total,
 
-        COUNT(*) FILTER (
-          WHERE first_seen::date =
-            (
-              NOW()
-              AT TIME ZONE 'UTC'
-            )::date
-        )::int AS today,
+      COUNT(*) FILTER (
+        WHERE first_seen::date =
+          (NOW() AT TIME ZONE 'UTC')::date
+      )::int AS today,
 
-        COUNT(*) FILTER (
-          WHERE exited_at::date =
-            (
-              NOW()
-              AT TIME ZONE 'UTC'
-            )::date
-        )::int AS exited
+      COUNT(*) FILTER (
+        WHERE exited_at::date =
+          (NOW() AT TIME ZONE 'UTC')::date
+      )::int AS exited
 
-      FROM visitors
-    `);
+    FROM visitors
+  `);
 
   return result.rows[0];
 }
-
 
 /* =========================================================
    VISITOR HEARTBEAT
@@ -742,29 +501,17 @@ async function visitorStats() {
 
 app.post(
   '/api/visitor/heartbeat',
-  async (
-    req,
-    res
-  ) => {
+  dbRequired,
+  async (req, res) => {
     try {
-      await ready;
-
-      const id =
-        String(
-          req.body?.id ||
-            ''
-        ).slice(
-          0,
-          100
-        );
+      const id = String(
+        req.body?.id || ''
+      ).slice(0, 100);
 
       if (!id) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'id'
-          });
+        return res.status(400).json({
+          error: 'id'
+        });
       }
 
       await pool.query(
@@ -792,7 +539,7 @@ app.post(
         [id]
       );
 
-      return res.json(
+      res.json(
         await visitorStats()
       );
 
@@ -802,16 +549,12 @@ app.post(
         error
       );
 
-      return res
-        .status(500)
-        .json({
-          error:
-            'visitor error'
-        });
+      res.status(500).json({
+        error: 'visitor error'
+      });
     }
   }
 );
-
 
 /* =========================================================
    VISITOR EXIT
@@ -819,102 +562,72 @@ app.post(
 
 app.post(
   '/api/visitor/exit',
-  async (
-    req,
-    res
-  ) => {
+  dbRequired,
+  async (req, res) => {
     try {
-      await ready;
-
-      const id =
-        String(
-          req.body?.id ||
-            ''
-        ).slice(
-          0,
-          100
-        );
+      const id = String(
+        req.body?.id || ''
+      ).slice(0, 100);
 
       if (id) {
         await pool.query(
           `
           UPDATE visitors
-
-          SET
-            exited_at = NOW()
-
+          SET exited_at = NOW()
           WHERE id = $1
           `,
           [id]
         );
       }
 
-      return res.json(
+      res.json(
         await visitorStats()
       );
 
     } catch (error) {
       console.error(
-        'Exit error:',
+        'Visitor exit error:',
         error
       );
 
-      return res
-        .status(500)
-        .json({
-          error:
-            'visitor error'
-        });
+      res.status(500).json({
+        error: 'visitor error'
+      });
     }
   }
 );
 
-
 /* =========================================================
-   VISITOR STATS API
+   VISITOR STATS
    ========================================================= */
 
 app.get(
   '/api/visitor/stats',
-  async (
-    req,
-    res
-  ) => {
+  dbRequired,
+  async (req, res) => {
     try {
-      return res.json(
+      res.json(
         await visitorStats()
       );
-
     } catch (error) {
-      console.error(
-        'Visitor stats error:',
-        error
-      );
+      console.error(error);
 
-      return res
-        .status(500)
-        .json({
-          error:
-            'visitor error'
-        });
+      res.status(500).json({
+        error: 'visitor error'
+      });
     }
   }
 );
 
-
 /* =========================================================
-   PACKAGES API
+   PACKAGES
    ========================================================= */
 
 app.get(
   '/api/packages',
-  async (
-    req,
-    res
-  ) => {
+  dbRequired,
+  async (req, res) => {
     try {
-      await ready;
-
       const result =
         await pool.query(`
           SELECT
@@ -922,19 +635,17 @@ app.get(
             diamonds,
             price
           FROM packages
-
           WHERE active = TRUE
-
           ORDER BY
             CASE
-              WHEN type = 'id'
-              THEN 1
-              ELSE 2
+              WHEN type = 'id' THEN 1
+              WHEN type = 'account' THEN 2
+              ELSE 3
             END,
             diamonds ASC
         `);
 
-      return res.json(
+      res.json(
         result.rows
       );
 
@@ -944,16 +655,12 @@ app.get(
         error
       );
 
-      return res
-        .status(500)
-        .json({
-          error:
-            'packages error'
-        });
+      res.status(500).json({
+        error: 'packages error'
+      });
     }
   }
 );
-
 
 /* =========================================================
    CREATE ORDER
@@ -961,14 +668,10 @@ app.get(
 
 app.post(
   '/api/orders',
+  dbRequired,
   upload.single('receipt'),
-  async (
-    req,
-    res
-  ) => {
+  async (req, res) => {
     try {
-      await ready;
-
       const {
         type,
         diamonds,
@@ -979,44 +682,29 @@ app.post(
         customerName
       } = req.body;
 
-
-      /* ---------------------------------------------------
-         Validate type
-         --------------------------------------------------- */
-
       if (
-        ![
-          'id',
-          'account'
-        ].includes(type)
+        !['id', 'account'].includes(
+          String(type)
+        )
       ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'نوع شحن غير صحيح'
-          });
+        return res.status(400).json({
+          error:
+            'نوع الشحن غير صحيح'
+        });
       }
-
-
-      /* ---------------------------------------------------
-         Validate package against database
-         --------------------------------------------------- */
 
       const packageResult =
         await pool.query(
           `
           SELECT
+            type,
             diamonds,
             price
-
           FROM packages
-
           WHERE
             type = $1
             AND diamonds = $2
             AND active = TRUE
-
           LIMIT 1
           `,
           [
@@ -1025,51 +713,26 @@ app.post(
           ]
         );
 
-      if (
-        !packageResult.rows[0]
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'الباقة غير موجودة'
-          });
-      }
-
       const selectedPackage =
         packageResult.rows[0];
 
-      const dbPrice =
+      if (!selectedPackage) {
+        return res.status(400).json({
+          error:
+            'الباقة غير موجودة أو غير مفعلة'
+        });
+      }
+
+      /*
+        IMPORTANT:
+        Never trust the price sent by the browser.
+        Price comes from the database.
+      */
+
+      const finalPrice =
         Number(
           selectedPackage.price
         );
-
-      const sentPrice =
-        Number(price);
-
-      /*
-        لا نعتمد على السعر القادم من المتصفح.
-        السعر الصحيح يأتي من قاعدة البيانات.
-      */
-
-      if (
-        !Number.isFinite(
-          sentPrice
-        ) ||
-        sentPrice !== dbPrice
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'سعر الباقة غير صحيح'
-          });
-      }
-
-
-      /* ---------------------------------------------------
-         ID validation
-         --------------------------------------------------- */
 
       if (
         type === 'id' &&
@@ -1077,18 +740,10 @@ app.post(
           playerId || ''
         ).trim()
       ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'UID مطلوب'
-          });
+        return res.status(400).json({
+          error: 'UID مطلوب'
+        });
       }
-
-
-      /* ---------------------------------------------------
-         Account validation
-         --------------------------------------------------- */
 
       if (
         type === 'account' &&
@@ -1101,78 +756,54 @@ app.post(
           )
         )
       ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'بيانات الحساب مطلوبة'
-          });
+        return res.status(400).json({
+          error:
+            'بيانات الحساب مطلوبة'
+        });
       }
-
 
       if (
         type === 'account' &&
         KEY.length !== 32
       ) {
-        return res
-          .status(500)
-          .json({
-            error:
-              'التشفير غير مهيأ على السيرفر'
-          });
+        return res.status(500).json({
+          error:
+            'CREDENTIAL_KEY غير مهيأ بشكل صحيح'
+        });
       }
-
-
-      /* ---------------------------------------------------
-         Order ID
-         --------------------------------------------------- */
 
       const id =
         newOrderId();
 
+      let receiptPath = null;
 
-      /* ---------------------------------------------------
-         Receipt upload
-         --------------------------------------------------- */
-
-      let receiptPath =
-        null;
+      /* ===================================================
+         RECEIPT
+         =================================================== */
 
       if (req.file) {
         if (!supabase) {
-          return res
-            .status(500)
-            .json({
-              error:
-                'Storage غير مهيأ على السيرفر'
-            });
+          return res.status(500).json({
+            error:
+              'Storage غير مهيأ على السيرفر'
+          });
         }
 
-        let extension =
-          'jpg';
-
-        if (
+        const extension =
           req.file.mimetype ===
           'image/png'
-        ) {
-          extension =
-            'png';
-        } else if (
-          req.file.mimetype ===
-          'image/webp'
-        ) {
-          extension =
-            'webp';
-        }
+            ? 'png'
+            : req.file.mimetype ===
+              'image/webp'
+              ? 'webp'
+              : 'jpg';
 
         receiptPath =
           `${id}-${crypto
             .randomBytes(6)
             .toString('hex')}.${extension}`;
 
-        const {
-          error
-        } =
+        const { error } =
           await supabase.storage
             .from(
               RECEIPT_BUCKET
@@ -1183,12 +814,9 @@ app.post(
               {
                 contentType:
                   req.file.mimetype,
-
                 cacheControl:
                   '3600',
-
-                upsert:
-                  false
+                upsert: false
               }
             );
 
@@ -1198,19 +826,12 @@ app.post(
             error
           );
 
-          return res
-            .status(500)
-            .json({
-              error:
-                'فشل رفع الإيصال'
-            });
+          return res.status(500).json({
+            error:
+              'فشل رفع الإيصال'
+          });
         }
       }
-
-
-      /* ---------------------------------------------------
-         Database transaction
-         --------------------------------------------------- */
 
       const client =
         await pool.connect();
@@ -1234,7 +855,6 @@ app.post(
               status,
               has_credentials
             )
-
           VALUES
             (
               $1,
@@ -1250,38 +870,24 @@ app.post(
           `,
           [
             id,
-
             type,
-
             Number(
               selectedPackage.diamonds
             ),
-
-            dbPrice,
-
+            finalPrice,
             String(
               playerId || ''
             ).trim(),
-
             String(
               customerName || ''
             ).trim(),
-
             receiptPath,
-
-            type ===
-              'account'
+            type === 'account'
           ]
         );
 
-
-        /* -----------------------------------------------
-           Account credentials
-           ----------------------------------------------- */
-
         if (
-          type ===
-          'account'
+          type === 'account'
         ) {
           await client.query(
             `
@@ -1292,7 +898,6 @@ app.post(
                 password,
                 expires_at
               )
-
             VALUES
               (
                 $1,
@@ -1304,18 +909,15 @@ app.post(
             `,
             [
               id,
-
               JSON.stringify(
                 enc(username)
               ),
-
               JSON.stringify(
                 enc(password)
               )
             ]
           );
         }
-
 
         await client.query(
           'COMMIT'
@@ -1338,14 +940,7 @@ app.post(
               .remove([
                 receiptPath
               ]);
-          } catch (
-            cleanupError
-          ) {
-            console.error(
-              'Receipt cleanup error:',
-              cleanupError
-            );
-          }
+          } catch (_) {}
         }
 
         throw error;
@@ -1354,45 +949,29 @@ app.post(
         client.release();
       }
 
-
-      /* ---------------------------------------------------
-         WhatsApp message
-         --------------------------------------------------- */
-
-      let message =
+      const message =
         `طلب FODEN%0A` +
         `رقم الطلب: ${encodeURIComponent(
           id
         )}%0A` +
-        `الباقة: ${encodeURIComponent(
-          diamonds
-        )} جوهرة%0A` +
-        `السعر: ${encodeURIComponent(
-          dbPrice
-        )} ج.م%0A` +
+        `الباقة: ${selectedPackage.diamonds} جوهرة%0A` +
+        `السعر: ${finalPrice} ج.م%0A` +
         `نوع الشحن: ${
           type === 'id'
             ? 'UID'
             : 'حساب'
-        }%0A`;
+        }%0A` +
+        (
+          type === 'id'
+            ? `UID: ${encodeURIComponent(
+                playerId
+              )}`
+            : ''
+        );
 
-      if (
-        type === 'id'
-      ) {
-        message +=
-          `UID: ${encodeURIComponent(
-            String(
-              playerId
-            ).trim()
-          )}`;
-      }
-
-      return res.json({
+      res.json({
         ok: true,
-
-        orderId:
-          id,
-
+        orderId: id,
         whatsapp:
           `https://wa.me/${WHATSAPP}?text=${message}`
       });
@@ -1403,16 +982,13 @@ app.post(
         error
       );
 
-      return res
-        .status(500)
-        .json({
-          error:
-            'حدث خطأ أثناء إنشاء الطلب'
-        });
+      res.status(500).json({
+        error:
+          'حدث خطأ أثناء إنشاء الطلب'
+      });
     }
   }
 );
-
 
 /* =========================================================
    FORMAT ORDER
@@ -1423,29 +999,20 @@ function formatOrder(
   receipt = null
 ) {
   return {
-    id:
-      row.id,
-
-    type:
-      row.type,
+    id: row.id,
+    type: row.type,
 
     diamonds:
-      Number(
-        row.diamonds
-      ),
+      Number(row.diamonds),
 
     price:
-      Number(
-        row.price
-      ),
+      Number(row.price),
 
     playerId:
-      row.player_id ||
-      '',
+      row.player_id || '',
 
     customerName:
-      row.customer_name ||
-      '',
+      row.customer_name || '',
 
     receipt,
 
@@ -1463,7 +1030,6 @@ function formatOrder(
   };
 }
 
-
 /* =========================================================
    GET ORDERS
    ========================================================= */
@@ -1471,31 +1037,23 @@ function formatOrder(
 app.get(
   '/api/orders',
   auth,
-  async (
-    req,
-    res
-  ) => {
+  dbRequired,
+  async (req, res) => {
     try {
-      await ready;
-
       const result =
         await pool.query(`
           SELECT *
           FROM orders
-
           ORDER BY
             created_at DESC
         `);
 
-      const orders =
-        [];
+      const orders = [];
 
       for (
-        const row
-        of result.rows
+        const row of result.rows
       ) {
-        let receipt =
-          null;
+        let receipt = null;
 
         if (
           row.receipt_path &&
@@ -1513,19 +1071,17 @@ app.get(
                 );
 
             if (
+              signed &&
               !signed.error &&
               signed.data
             ) {
               receipt =
-                signed.data
-                  .signedUrl;
+                signed.data.signedUrl;
             }
-          } catch (
-            receiptError
-          ) {
+          } catch (error) {
             console.error(
-              'Receipt URL error:',
-              receiptError
+              'Signed URL error:',
+              error.message
             );
           }
         }
@@ -1538,7 +1094,7 @@ app.get(
         );
       }
 
-      return res.json(
+      res.json(
         orders
       );
 
@@ -1548,16 +1104,13 @@ app.get(
         error
       );
 
-      return res
-        .status(500)
-        .json({
-          error:
-            'orders error'
-        });
+      res.status(500).json({
+        error:
+          'orders error'
+      });
     }
   }
 );
-
 
 /* =========================================================
    UPDATE ORDER
@@ -1566,13 +1119,9 @@ app.get(
 app.patch(
   '/api/orders/:id',
   auth,
-  async (
-    req,
-    res
-  ) => {
+  dbRequired,
+  async (req, res) => {
     try {
-      await ready;
-
       const allowed = [
         'new',
         'paid',
@@ -1586,25 +1135,19 @@ app.patch(
           req.body.status
         )
       ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'status'
-          });
+        return res.status(400).json({
+          error: 'status'
+        });
       }
 
       const result =
         await pool.query(
           `
           UPDATE orders
-
           SET
             status = $1,
             updated_at = NOW()
-
           WHERE id = $2
-
           RETURNING *
           `,
           [
@@ -1613,18 +1156,14 @@ app.patch(
           ]
         );
 
-      if (
-        !result.rows[0]
-      ) {
-        return res
-          .status(404)
-          .json({
-            error:
-              'not found'
-          });
+      if (!result.rows[0]) {
+        return res.status(404).json({
+          error:
+            'not found'
+        });
       }
 
-      return res.json(
+      res.json(
         formatOrder(
           result.rows[0]
         )
@@ -1636,16 +1175,13 @@ app.patch(
         error
       );
 
-      return res
-        .status(500)
-        .json({
-          error:
-            'update error'
-        });
+      res.status(500).json({
+        error:
+          'update error'
+      });
     }
   }
 );
-
 
 /* =========================================================
    GET ACCOUNT CREDENTIALS
@@ -1654,13 +1190,9 @@ app.patch(
 app.get(
   '/api/orders/:id/credentials',
   auth,
-  async (
-    req,
-    res
-  ) => {
+  dbRequired,
+  async (req, res) => {
     try {
-      await ready;
-
       const result =
         await pool.query(
           `
@@ -1668,9 +1200,7 @@ app.get(
             username,
             password,
             expires_at
-
           FROM order_secrets
-
           WHERE order_id = $1
           `,
           [req.params.id]
@@ -1683,24 +1213,20 @@ app.get(
         !secret ||
         new Date(
           secret.expires_at
-        ).getTime() <
-          now()
+        ).getTime() < now()
       ) {
         await pool.query(
           `
           DELETE FROM order_secrets
-
           WHERE order_id = $1
           `,
           [req.params.id]
         );
 
-        return res
-          .status(404)
-          .json({
-            error:
-              'انتهت صلاحية بيانات الدخول'
-          });
+        return res.status(404).json({
+          error:
+            'انتهت صلاحية بيانات الدخول'
+        });
       }
 
       const resultData = {
@@ -1715,22 +1241,19 @@ app.get(
           )
       };
 
-
       /*
-        Delete immediately after retrieval.
-        Credentials are one-time readable.
+        Credentials are deleted after being viewed.
       */
 
       await pool.query(
         `
         DELETE FROM order_secrets
-
         WHERE order_id = $1
         `,
         [req.params.id]
       );
 
-      return res.json(
+      res.json(
         resultData
       );
 
@@ -1740,16 +1263,13 @@ app.get(
         error
       );
 
-      return res
-        .status(500)
-        .json({
-          error:
-            'credential error'
-        });
+      res.status(500).json({
+        error:
+          'credential error'
+      });
     }
   }
 );
-
 
 /* =========================================================
    ADMIN STATS
@@ -1758,59 +1278,48 @@ app.get(
 app.get(
   '/api/admin/stats',
   auth,
-  async (
-    req,
-    res
-  ) => {
+  dbRequired,
+  async (req, res) => {
     try {
-      await ready;
-
       const [
         orders,
         visitors
-      ] =
-        await Promise.all([
-          pool.query(`
-            SELECT
+      ] = await Promise.all([
+        pool.query(`
+          SELECT
+            COUNT(*)::int
+              AS total,
 
-              COUNT(*)::int
-                AS total,
+            COUNT(*) FILTER (
+              WHERE status = 'new'
+            )::int AS new,
 
-              COUNT(*) FILTER (
-                WHERE status =
-                  'new'
-              )::int AS new,
+            COUNT(*) FILTER (
+              WHERE status = 'paid'
+            )::int AS paid,
 
-              COUNT(*) FILTER (
-                WHERE status =
-                  'paid'
-              )::int AS paid,
+            COUNT(*) FILTER (
+              WHERE status = 'processing'
+            )::int AS processing,
 
-              COUNT(*) FILTER (
-                WHERE status =
-                  'processing'
-              )::int AS processing,
+            COUNT(*) FILTER (
+              WHERE status = 'completed'
+            )::int AS completed,
 
-              COUNT(*) FILTER (
-                WHERE status =
-                  'completed'
-              )::int AS completed,
+            COUNT(*) FILTER (
+              WHERE status = 'cancelled'
+            )::int AS cancelled
 
-              COUNT(*) FILTER (
-                WHERE status =
-                  'cancelled'
-              )::int AS cancelled
+          FROM orders
+        `),
 
-            FROM orders
-          `),
-
-          visitorStats()
-        ]);
+        visitorStats()
+      ]);
 
       const row =
         orders.rows[0];
 
-      return res.json({
+      res.json({
         visitors,
 
         orders:
@@ -1820,14 +1329,10 @@ app.get(
 
         counts: {
           new:
-            Number(
-              row.new
-            ),
+            Number(row.new),
 
           paid:
-            Number(
-              row.paid
-            ),
+            Number(row.paid),
 
           processing:
             Number(
@@ -1848,39 +1353,47 @@ app.get(
 
     } catch (error) {
       console.error(
-        'Admin stats error:',
+        'Stats error:',
         error
       );
 
-      return res
-        .status(500)
-        .json({
-          error:
-            'stats error'
-        });
+      res.status(500).json({
+        error:
+          'stats error'
+      });
     }
   }
 );
 
-
 /* =========================================================
-   HEALTH CHECK
+   HEALTH
    ========================================================= */
 
 app.get(
   '/api/health',
-  async (
-    req,
-    res
-  ) => {
+  async (req, res) => {
     try {
-      await ready;
+      const ok =
+        await ensureDatabase();
+
+      if (
+        !ok ||
+        !pool
+      ) {
+        return res.status(503).json({
+          ok: false,
+          database: false,
+          error:
+            databaseError?.message ||
+            'Database unavailable'
+        });
+      }
 
       await pool.query(
         'SELECT 1'
       );
 
-      return res.json({
+      res.json({
         ok: true,
         database: true
       });
@@ -1891,16 +1404,28 @@ app.get(
         error
       );
 
-      return res
-        .status(500)
-        .json({
-          ok: false,
-          database: false
-        });
+      res.status(503).json({
+        ok: false,
+        database: false,
+        error:
+          error.message
+      });
     }
   }
 );
 
+/* =========================================================
+   API 404
+   ========================================================= */
+
+app.use(
+  '/api',
+  (req, res) => {
+    res.status(404).json({
+      error: 'API route not found'
+    });
+  }
+);
 
 /* =========================================================
    STATIC ROUTES
@@ -1908,10 +1433,7 @@ app.get(
 
 app.get(
   '/admin.html',
-  (
-    req,
-    res
-  ) => {
+  (req, res) => {
     res.sendFile(
       path.join(
         ROOT,
@@ -1921,17 +1443,14 @@ app.get(
   }
 );
 
-
 /*
-  Keep the frontend route last.
+  Do NOT use app.get(/.*/, ...) here.
+  This keeps API handling separated from the frontend.
 */
 
 app.get(
-  /.*/,
-  (
-    req,
-    res
-  ) => {
+  '*',
+  (req, res) => {
     res.sendFile(
       path.join(
         ROOT,
@@ -1941,36 +1460,16 @@ app.get(
   }
 );
 
-
 /* =========================================================
-   VERCEL EXPORT
+   VERCEL
    ========================================================= */
 
 /*
   IMPORTANT:
-  Do NOT use app.listen() on Vercel.
+  NO app.listen() on Vercel.
 
-  Vercel imports the Express application
-  as a serverless function.
+  Vercel handles the HTTP server.
 */
 
 module.exports = app;
-
-
-/* =========================================================
-   LOCAL DEVELOPMENT
-   ========================================================= */
-
-if (
-  require.main === module
-) {
-  app.listen(
-    PORT,
-    () => {
-      console.log(
-        `FODEN running on port ${PORT}`
-      );
-    }
-  );
-}
 ```
