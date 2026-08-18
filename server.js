@@ -35,25 +35,34 @@ const supabase =
       })
     : null;
 
-const connectionString =
-  process.env.POSTGRES_URL_NON_POOLING ||
+const rawConnectionString =
   process.env.POSTGRES_PRISMA_URL ||
-  process.env.POSTGRES_URL;
+  process.env.POSTGRES_URL ||
+  process.env.POSTGRES_URL_NON_POOLING;
 
-if (!connectionString) {
-  console.warn('WARNING: No Postgres connection string found.');
+if (!rawConnectionString) {
+  console.warn(
+    'WARNING: No Postgres connection string found.'
+  );
 }
+
+const connectionString = rawConnectionString
+  ? rawConnectionString
+      .replace(/[?&]sslmode=[^&]*/gi, '')
+      .replace(/[?&]pgbouncer=[^&]*/gi, '')
+      .replace(/[?&]supa=[^&]*/gi, '')
+      .replace(/[?&]sslrootcert=[^&]*/gi, '')
+  : null;
 
 const pool = connectionString
   ? new Pool({
-      connectionString: connectionString.replace(
-        /[?&]sslmode=[^&]*/i,
-        ''
-      ),
+      connectionString,
       ssl: {
         rejectUnauthorized: false
       },
-      max: 2
+      max: 2,
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 10000
     })
   : null;
 const defaultPackages = {
