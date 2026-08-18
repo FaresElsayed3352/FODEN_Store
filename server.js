@@ -52,9 +52,9 @@ const supabase =
    ========================================================= */
 
 const rawConnectionString =
-  process.env.POSTGRES_PRISMA_URL ||
+  process.env.POSTGRES_URL_NON_POOLING ||
   process.env.POSTGRES_URL ||
-  process.env.POSTGRES_URL_NON_POOLING;
+  process.env.POSTGRES_PRISMA_URL;
 
 if (!rawConnectionString) {
   console.warn(
@@ -62,36 +62,37 @@ if (!rawConnectionString) {
   );
 }
 
-/*
-  We intentionally prefer POSTGRES_PRISMA_URL / POSTGRES_URL
-  before POSTGRES_URL_NON_POOLING.
+let connectionString = null;
 
-  The non-pooling connection was producing:
-  self-signed certificate in certificate chain
+if (rawConnectionString) {
+  connectionString = rawConnectionString
+    .replace(/[?&]sslmode=[^&]*/gi, '')
+    .replace(/[?&]sslrootcert=[^&]*/gi, '')
+    .replace(/[?&]sslcert=[^&]*/gi, '')
+    .replace(/[?&]sslkey=[^&]*/gi, '')
+    .replace(/[?&]pgbouncer=[^&]*/gi, '')
+    .replace(/[?&]supa=[^&]*/gi, '');
 
-  We also remove SSL parameters from the URL so that node-postgres
-  does not override the explicit SSL configuration below.
-*/
-
-const connectionString = rawConnectionString
-  ? rawConnectionString
-      .replace(/[?&]sslmode=[^&]*/gi, '')
-      .replace(/[?&]pgbouncer=[^&]*/gi, '')
-      .replace(/[?&]supa=[^&]*/gi, '')
-  : null;
+  // تنظيف ? أو & لو بقوا في آخر الـURL
+  connectionString =
+    connectionString
+      .replace(/\?&/g, '?')
+      .replace(/[?&]$/g, '');
+}
 
 const pool = connectionString
   ? new Pool({
       connectionString,
+
       ssl: {
         rejectUnauthorized: false
       },
+
       max: 2,
       idleTimeoutMillis: 10000,
       connectionTimeoutMillis: 10000
     })
   : null;
-
 
 /* =========================================================
    DEFAULT PACKAGES
