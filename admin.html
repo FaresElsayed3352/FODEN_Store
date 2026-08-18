@@ -1,0 +1,19 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FODEN Admin</title>
+<style>body{font-family:Arial,Tahoma;background:#0a0d16;color:#eef2fb;margin:0;padding:25px}.box{background:#121728;border:1px solid #ffffff15;border-radius:16px;padding:20px;margin:15px 0}button,input{padding:10px;border-radius:9px;border:1px solid #ffffff18;background:#0d1120;color:#fff}button{cursor:pointer}.stats{display:flex;gap:10px;flex-wrap:wrap}.stat{padding:14px;background:#ffffff08;border-radius:12px}.orders{overflow:auto}table{width:100%;border-collapse:collapse}td,th{padding:10px;border-bottom:1px solid #ffffff12;text-align:right}select{padding:8px;background:#0d1120;color:#fff;border:1px solid #ffffff18;border-radius:8px}.danger{color:#ffb020}</style></head>
+<body><h1>FODEN Admin</h1>
+<div class="box"><input id="token" type="password" placeholder="ADMIN_TOKEN"><button onclick="save()">دخول</button></div>
+<div id="app" style="display:none"><div class="stats" id="stats"></div><div class="box"><button onclick="load()">🔄 تحديث</button></div><div class="box orders"><table><thead><tr><th>الطلب</th><th>النوع</th><th>الباقة</th><th>السعر</th><th>الحالة</th><th>إيصال</th><th>الحساب</th></tr></thead><tbody id="rows"></tbody></table></div></div>
+<script>
+const tokenEl=document.getElementById('token');
+const app=document.getElementById('app');
+const stats=document.getElementById('stats');
+const rows=document.getElementById('rows');
+let token=localStorage.getItem('foden_admin')||'';
+tokenEl.value=token;
+function hdr(){return {'Authorization':'Bearer '+token}}
+function save(){token=tokenEl.value;localStorage.setItem('foden_admin',token);app.style.display='block';load()}
+async function load(){const [s,o]=await Promise.all([fetch('/api/admin/stats',{headers:hdr()}),fetch('/api/orders',{headers:hdr()})]);if(!s.ok)return alert('ADMIN_TOKEN غير صحيح');const st=await s.json(),orders=await o.json();stats.innerHTML=`<div class=stat>الموجودون الآن: <b>${st.visitors.online}</b></div><div class=stat>زيارات اليوم: <b>${st.visitors.today}</b></div><div class=stat>إجمالي الزيارات: <b>${st.visitors.total}</b></div><div class=stat>إجمالي الطلبات: <b>${st.orders}</b></div>`;rows.innerHTML=orders.map(x=>`<tr><td>${x.id}<br><small>${x.createdAt}</small></td><td>${x.type==='id'?'UID':'حساب'}</td><td>${x.diamonds}</td><td>${x.price}</td><td><select onchange="status('${x.id}',this.value)">${['new','paid','processing','completed','cancelled'].map(s=>`<option ${s===x.status?'selected':''}>${s}</option>`).join('')}</select></td><td>${x.receipt?`<a target=_blank href="${x.receipt}">فتح</a>`:'-'}</td><td>${x.hasCredentials?`<button onclick="cred('${x.id}')">كشف مرة واحدة</button>`:'-'}</td></tr>`).join('')}
+async function status(id,status){await fetch('/api/orders/'+id,{method:'PATCH',headers:{...hdr(),'Content-Type':'application/json'},body:JSON.stringify({status})});load()}
+async function cred(id){const r=await fetch('/api/orders/'+id+'/credentials',{headers:hdr()});const j=await r.json();if(!r.ok)return alert(j.error);alert('Username: '+j.username+'\\nPassword: '+j.password+'\\n\\nسيتم حذف بيانات الدخول من الخزنة بعد هذه القراءة.')}
+if(token){app.style.display='block';load()}
+</script></body></html>
