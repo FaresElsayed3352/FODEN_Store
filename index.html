@@ -1,9 +1,9 @@
+```html
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-
 <title>FODEN Store | شحن Free Fire</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&family=Tajawal:wght@400;500;700;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
@@ -17,7 +17,7 @@
   --cyan:#3fd8ff;
   --text:#eef2fb;
   --muted:#9aa4c2;
-  --line:rgba(255,255,255,.08);
+  --line:rgba(255,255,255,.08)
 }
 
 *{box-sizing:border-box}
@@ -29,7 +29,7 @@ body{
     radial-gradient(ellipse 80% 60% at 90% 20%,rgba(63,216,255,.1),transparent 55%),
     var(--bg);
   color:var(--text);
-  font-family:Tajawal,sans-serif;
+  font-family:Tajawal,sans-serif
 }
 
 .top{
@@ -37,7 +37,7 @@ body{
   color:#0a0d16;
   text-align:center;
   padding:10px;
-  font-weight:800;
+  font-weight:800
 }
 
 header{
@@ -50,16 +50,11 @@ header{
   background:rgba(10,13,22,.8);
   backdrop-filter:blur(12px);
   border-bottom:1px solid var(--line);
-  z-index:10;
+  z-index:10
 }
 
-.brand{
-  font:800 22px Almarai;
-}
-
-.brand span{
-  color:var(--cyan);
-}
+.brand{font:800 22px Almarai}
+.brand span{color:var(--cyan)}
 
 .wa{
   background:#25d366;
@@ -67,28 +62,28 @@ header{
   padding:11px 18px;
   border-radius:99px;
   text-decoration:none;
-  font-weight:800;
+  font-weight:800
 }
 
 .hero{
   text-align:center;
-  padding:65px 6% 35px;
+  padding:65px 6% 35px
 }
 
 .eyebrow{
   color:var(--cyan);
-  font-weight:800;
+  font-weight:800
 }
 
 .hero h1{
   font:800 clamp(30px,5vw,56px) Almarai;
-  line-height:1.3;
+  line-height:1.3
 }
 
 .hero h1 span{
   background:linear-gradient(90deg,var(--gold),var(--orange),#ff2d55);
   -webkit-background-clip:text;
-  color:transparent;
+  color:transparent
 }
 
 .hero p{
@@ -96,7 +91,7 @@ header{
   font-size:17px;
   line-height:1.9;
   max-width:650px;
-  margin:auto;
+  margin:auto
 }
 
 .stats{
@@ -104,7 +99,7 @@ header{
   justify-content:center;
   gap:10px;
   flex-wrap:wrap;
-  margin-top:22px;
+  margin-top:22px
 }
 
 .pill{
@@ -113,19 +108,17 @@ header{
   border-radius:99px;
   background:#ffffff06;
   color:var(--muted);
-  font-size:13px;
+  font-size:13px
 }
 
-.pill b{
-  color:var(--text);
-}
+.pill b{color:var(--text)}
 
 .tabs{
   display:flex;
   justify-content:center;
   gap:10px;
   flex-wrap:wrap;
-  margin:20px;
+  margin:20px
 }
 
 .tabs button{
@@ -135,18 +128,18 @@ header{
   padding:12px 25px;
   border-radius:99px;
   font-weight:800;
-  cursor:pointer;
+  cursor:pointer
 }
 
 .tabs button.active{
   background:linear-gradient(135deg,var(--orange),var(--gold));
-  color:#0a0d16;
+  color:#0a0d16
 }
 
 .note{
   text-align:center;
   color:var(--muted);
-  margin:0 6% 25px;
+  margin:0 6% 25px
 }
 
 .grid{
@@ -155,38 +148,38 @@ header{
   padding:0 6% 50px;
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-  gap:18px;
+  gap:18px
 }
 
 .card{
   background:linear-gradient(180deg,var(--panel),#12172866);
   border:1px solid var(--line);
   border-radius:18px;
-  padding:22px;
+  padding:22px
 }
 
 .card.best{
   border-color:var(--orange);
-  box-shadow:0 0 35px #ff5e2e18;
+  box-shadow:0 0 35px #ff5e2e18
 }
 
 .amount{
   font:700 29px Rajdhani;
-  margin-bottom:14px;
+  margin-bottom:14px
 }
 
 .amount small{
   font:400 14px Tajawal;
-  color:var(--muted);
+  color:var(--muted)
 }
 
 .price{
   border-top:1px dashed var(--line);
-  padding-top:14px;
+  padding-top:14px
 }
 
 .price b{
-  font:700 22px Rajdhani;
+  font:700 22px Rajdhani
 }
 
 .order{
@@ -198,11 +191,7 @@ header{
   color:var(--cyan);
   border-radius:12px;
   font-weight:800;
-  cursor:pointer;
-}
-
-.order:hover{
-  background:#3fd8ff20;
+  cursor:pointer
 }
 
 .overlay{
@@ -214,19 +203,17 @@ header{
   z-index:50;
   align-items:center;
   justify-content:center;
-  padding:20px;
+  padding:20px
 }
 
-.overlay.show{
-  display:flex;
-}
+.overlay.show{display:flex}
 
 .modal{
   width:min(450px,100%);
   background:var(--panel);
   border:1px solid var(--line);
   border-radius:20px;
-  padding:25px;
+  padding:25px
 }
 
 .modal input{
@@ -237,7 +224,7 @@ header{
   border:1px solid var(--line);
   background:#0d1120;
   color:var(--text);
-  font:inherit;
+  font:inherit
 }
 
 .submit{
@@ -249,7 +236,7 @@ header{
   background:#25d366;
   color:#fff;
   font-weight:900;
-  cursor:pointer;
+  cursor:pointer
 }
 
 .close{
@@ -259,22 +246,7 @@ header{
   border-radius:10px;
   border:1px solid var(--line);
   background:none;
-  color:var(--muted);
-  cursor:pointer;
-}
-
-.error-box{
-  grid-column:1/-1;
-  text-align:center;
-  padding:40px;
-  color:#ff6666;
-}
-
-.loading{
-  grid-column:1/-1;
-  text-align:center;
-  padding:40px;
-  color:var(--muted);
+  color:var(--muted)
 }
 
 footer{
@@ -283,7 +255,7 @@ footer{
   border-top:1px solid var(--line);
   color:var(--muted);
   line-height:2;
-  font-size:13px;
+  font-size:13px
 }
 </style>
 </head>
@@ -291,22 +263,12 @@ footer{
 <body>
 
 <div class="top">
-  🛡️ FODEN Store — شحن بالـ UID أو الحساب • دعم واتساب
+🛡️ FODEN Store — شحن بالـ UID أو الحساب • دعم واتساب
 </div>
 
 <header>
-  <div class="brand">
-    FOD<span>EN</span>
-  </div>
-
-  <a
-    class="wa"
-    href="https://wa.me/201020477414"
-    target="_blank"
-    rel="noopener"
-  >
-    💬 واتساب
-  </a>
+  <div class="brand">FOD<span>EN</span></div>
+  <a class="wa" href="https://wa.me/201020477414" target="_blank">💬 واتساب</a>
 </header>
 
 <section class="hero">
@@ -326,7 +288,6 @@ footer{
   </p>
 
   <div class="stats">
-
     <div class="pill">
       🟢 الآن <b id="online">0</b> على الموقع
     </div>
@@ -334,37 +295,24 @@ footer{
     <div class="pill">
       👥 زيارات اليوم <b id="today">0</b>
     </div>
-
   </div>
 
 </section>
 
 <div class="tabs">
-
-  <button id="idTab" class="active">
-    🆔 شحن بالـ UID / ID
-  </button>
-
-  <button id="accTab">
-    👤 شحن الحساب
-  </button>
-
+  <button id="idTab" class="active">🆔 شحن بالـ UID / ID</button>
+  <button id="accTab">👤 شحن الحساب</button>
 </div>
 
 <div class="note" id="note">
   الشحن بالـ UID فقط — بدون كلمة مرور.
 </div>
 
-<div class="grid" id="grid">
-  <div class="loading">
-    جاري تحميل باقات الجواهر...
-  </div>
-</div>
+<div class="grid" id="grid"></div>
 
 <footer>
-  © 2026 FODEN Store — متجر إعادة شحن غير رسمي وغير تابع لشركة Garena.
-  <br>
-  لا تشارك كلمة مرورك إلا إذا اخترت خدمة الشحن عبر الحساب وكنت موافقًا على طريقة التنفيذ.
+© 2026 FODEN Store — متجر إعادة شحن غير رسمي وغير تابع لشركة Garena.<br>
+لا تشارك كلمة مرورك إلا إذا اخترت خدمة الشحن عبر الحساب وكنت موافقًا على طريقة التنفيذ.
 </footer>
 
 <div class="overlay" id="overlay">
@@ -378,36 +326,27 @@ let packages = [];
 
 const grid = document.getElementById('grid');
 const note = document.getElementById('note');
-const overlay = document.getElementById('overlay');
-const modal = document.getElementById('modal');
-
 const idTab = document.getElementById('idTab');
 const accTab = document.getElementById('accTab');
+const overlay = document.getElementById('overlay');
+const modal = document.getElementById('modal');
+const online = document.getElementById('online');
+const today = document.getElementById('today');
 
 
-// =========================
-// تحميل الباقات
-// =========================
-
-async function loadPackages(){
+async function load(){
 
   try{
 
-    grid.innerHTML = `
-      <div class="loading">
-        جاري تحميل باقات الجواهر...
-      </div>
-    `;
-
-    const response = await fetch('/api/packages', {
+    const r = await fetch('/api/packages', {
       cache:'no-store'
     });
 
-    if(!response.ok){
-      throw new Error('HTTP ' + response.status);
+    if(!r.ok){
+      throw new Error('HTTP ' + r.status);
     }
 
-    const data = await response.json();
+    const data = await r.json();
 
     if(!Array.isArray(data)){
       throw new Error('Invalid packages response');
@@ -422,10 +361,15 @@ async function loadPackages(){
     console.error('Packages load error:', error);
 
     grid.innerHTML = `
-      <div class="error-box">
+      <div style="
+        grid-column:1/-1;
+        text-align:center;
+        padding:40px;
+        color:#ff6b6b
+      ">
         تعذر تحميل باقات الجواهر حالياً.
         <br>
-        <small>
+        <small style="color:#9aa4c2">
           تأكد من الاتصال ثم حدّث الصفحة.
         </small>
       </div>
@@ -436,52 +380,48 @@ async function loadPackages(){
 }
 
 
-// =========================
-// عرض الباقات
-// =========================
-
 function render(){
 
-  const list = packages.filter(function(packageItem){
-
-    return String(packageItem.type).toLowerCase() === type;
-
+  const list = packages.filter(function(p){
+    return p.type === type;
   });
 
-  if(list.length === 0){
+  if(!list.length){
 
     grid.innerHTML = `
-      <div class="error-box">
-        لا توجد باقات متاحة حالياً لهذا النوع.
+      <div style="
+        grid-column:1/-1;
+        text-align:center;
+        padding:40px;
+        color:#ffb020
+      ">
+        لا توجد باقات متاحة حالياً لهذه الطريقة.
       </div>
     `;
 
     return;
   }
 
-  const bestIndex = Math.floor(list.length / 2);
+  grid.innerHTML = list.map(function(p,i){
 
-  grid.innerHTML = list.map(function(packageItem,index){
-
-    const diamonds = Number(packageItem.diamonds) || 0;
-    const price = packageItem.price ?? '';
+    const best =
+      i === Math.floor(list.length / 2)
+      ? 'best'
+      : '';
 
     return `
-      <div class="card ${index === bestIndex ? 'best' : ''}">
+      <div class="card ${best}">
 
         <div class="amount">
-          ${diamonds.toLocaleString('en-US')}
+          ${Number(p.diamonds).toLocaleString('en-US')}
           <small>جوهرة</small>
         </div>
 
         <div class="price">
-          <b>${price} ج.م</b>
+          <b>${p.price} ج.م</b>
         </div>
 
-        <button
-          class="order"
-          data-index="${index}"
-        >
+        <button class="order" onclick="openOrder(${JSON.stringify(p).replace(/"/g,'&quot;')})">
           اطلب دلوقتي
         </button>
 
@@ -489,19 +429,6 @@ function render(){
     `;
 
   }).join('');
-
-  // ربط أزرار الطلب
-  const buttons = grid.querySelectorAll('.order');
-
-  buttons.forEach(function(button,index){
-
-    button.addEventListener('click',function(){
-
-      openOrder(list[index]);
-
-    });
-
-  });
 
   note.textContent =
     type === 'id'
@@ -511,11 +438,7 @@ function render(){
 }
 
 
-// =========================
-// التبديل بين UID والحساب
-// =========================
-
-idTab.addEventListener('click',function(){
+idTab.onclick = function(){
 
   type = 'id';
 
@@ -524,10 +447,10 @@ idTab.addEventListener('click',function(){
 
   render();
 
-});
+};
 
 
-accTab.addEventListener('click',function(){
+accTab.onclick = function(){
 
   type = 'account';
 
@@ -536,65 +459,33 @@ accTab.addEventListener('click',function(){
 
   render();
 
-});
+};
 
 
-// =========================
-// نافذة الطلب
-// =========================
-
-function openOrder(packageItem){
-
-  const diamonds = Number(packageItem.diamonds) || 0;
-  const price = packageItem.price ?? '';
-
-  let fields = '';
-
-  if(type === 'id'){
-
-    fields = `
-      <input
-        id="playerId"
-        placeholder="UID / ID اللاعب"
-      >
-    `;
-
-  }else{
-
-    fields = `
-      <input
-        id="username"
-        placeholder="اسم المستخدم أو البريد"
-      >
-
-      <input
-        id="password"
-        type="password"
-        placeholder="كلمة المرور"
-      >
-    `;
-
-  }
+function openOrder(p){
 
   modal.innerHTML = `
 
     <h2>
-      🛒 طلب ${diamonds.toLocaleString('en-US')} جوهرة
+      🛒 طلب ${Number(p.diamonds).toLocaleString()} جوهرة
     </h2>
 
     <p style="color:#9aa4c2">
       الإجمالي:
       <b style="color:#ffb020">
-        ${price} ج.م
+        ${p.price} ج.م
       </b>
     </p>
 
-    ${fields}
+    ${
+      type === 'id'
+      ?
+      '<input id="playerId" placeholder="UID / ID اللاعب">'
+      :
+      '<input id="username" placeholder="اسم المستخدم أو البريد"><input id="password" type="password" placeholder="كلمة المرور">'
+    }
 
-    <input
-      id="customerName"
-      placeholder="اسمك (اختياري)"
-    >
+    <input id="customerName" placeholder="اسمك (اختياري)">
 
     <input
       id="receipt"
@@ -603,20 +494,21 @@ function openOrder(packageItem){
       style="padding:9px"
     >
 
-    <p style="color:#9aa4c2;font-size:12px;line-height:1.7">
+    <p style="
+      color:#9aa4c2;
+      font-size:12px;
+      line-height:1.7
+    ">
       يمكنك رفع صورة إثبات التحويل. الحد الأقصى 5MB.
     </p>
 
-    <button
-      class="submit"
-      id="submitOrder"
-    >
+    <button class="submit" onclick='sendOrder(${JSON.stringify(p)})'>
       إرسال الطلب ومتابعة واتساب
     </button>
 
     <button
       class="close"
-      id="closeModal"
+      onclick="overlay.classList.remove('show')"
     >
       إلغاء
     </button>
@@ -625,172 +517,105 @@ function openOrder(packageItem){
 
   overlay.classList.add('show');
 
-  document.getElementById('closeModal').onclick = function(){
-
-    overlay.classList.remove('show');
-
-  };
-
-  document.getElementById('submitOrder').onclick = function(){
-
-    sendOrder(packageItem);
-
-  };
-
 }
 
 
-// =========================
-// إرسال الطلب
-// =========================
-
-async function sendOrder(packageItem){
+async function sendOrder(p){
 
   try{
 
     const fd = new FormData();
 
-    const diamonds = Number(packageItem.diamonds) || 0;
-
-    fd.append('type',type);
-    fd.append('diamonds',diamonds);
-    fd.append('price',packageItem.price ?? '');
+    fd.append('type', type);
+    fd.append('diamonds', p.diamonds);
+    fd.append('price', p.price);
 
     const customerName =
-      document.getElementById('customerName').value.trim();
+      document.getElementById('customerName').value;
 
-    fd.append('customerName',customerName);
+    fd.append('customerName', customerName);
 
 
     if(type === 'id'){
 
-      const playerId =
+      const v =
         document.getElementById('playerId').value.trim();
 
-      if(!playerId){
-
-        alert('أدخل UID / ID');
-
-        return;
+      if(!v){
+        return alert('أدخل UID / ID');
       }
 
-      fd.append('playerId',playerId);
+      fd.append('playerId', v);
 
     }else{
 
-      const username =
+      const u =
         document.getElementById('username').value.trim();
 
-      const password =
+      const pw =
         document.getElementById('password').value;
 
-      if(!username || !password){
-
-        alert('أدخل بيانات الحساب');
-
-        return;
+      if(!u || !pw){
+        return alert('أدخل بيانات الحساب');
       }
 
-      fd.append('username',username);
-      fd.append('password',password);
+      fd.append('username', u);
+      fd.append('password', pw);
 
     }
 
 
-    const receiptInput =
-      document.getElementById('receipt');
-
     const file =
-      receiptInput.files[0];
+      document.getElementById('receipt').files[0];
 
     if(file){
 
       if(file.size > 5 * 1024 * 1024){
-
-        alert('حجم صورة الإثبات يجب ألا يتجاوز 5MB');
-
-        return;
+        return alert('حجم الصورة يجب ألا يتجاوز 5MB');
       }
 
-      fd.append('receipt',file);
+      fd.append('receipt', file);
 
     }
 
 
-    const response = await fetch('/api/orders',{
+    const r = await fetch('/api/orders', {
       method:'POST',
       body:fd
     });
 
+    const j = await r.json();
 
-    const result = await response.json();
-
-
-    if(!response.ok){
-
-      throw new Error(
-        result.error || 'حدث خطأ أثناء إنشاء الطلب'
-      );
-
+    if(!r.ok){
+      return alert(j.error || 'حدث خطأ');
     }
-
 
     overlay.classList.remove('show');
 
-
-    if(result.whatsapp){
-
-      window.open(result.whatsapp,'_blank');
-
+    if(j.whatsapp){
+      window.open(j.whatsapp,'_blank');
     }
 
-
-    alert(
-      'تم إنشاء طلبك: ' +
-      (result.orderId || '')
-    );
-
+    alert('تم إنشاء طلبك: ' + j.orderId);
 
   }catch(error){
 
-    console.error('Order error:',error);
+    console.error(error);
 
-    alert(
-      error.message ||
-      'حدث خطأ أثناء إرسال الطلب'
-    );
+    alert('حدث خطأ أثناء إرسال الطلب');
 
   }
 
 }
 
 
-// =========================
-// عداد الزوار
-// =========================
-
 const visitorKey = 'foden_vid';
 
-let vid =
-  localStorage.getItem(visitorKey);
-
+let vid = localStorage.getItem(visitorKey);
 
 if(!vid){
 
-  if(
-    window.crypto &&
-    crypto.randomUUID
-  ){
-
-    vid = crypto.randomUUID();
-
-  }else{
-
-    vid =
-      Date.now().toString(36) +
-      Math.random().toString(36).slice(2);
-
-  }
+  vid = crypto.randomUUID();
 
   localStorage.setItem(visitorKey,vid);
 
@@ -801,51 +626,32 @@ async function beat(){
 
   try{
 
-    const response =
-      await fetch('/api/visitor/heartbeat',{
-        method:'POST',
-        headers:{
-          'Content-Type':'application/json'
-        },
-        body:JSON.stringify({
-          id:vid
-        })
-      });
+    const r = await fetch('/api/visitor/heartbeat',{
 
+      method:'POST',
 
-    if(!response.ok){
+      headers:{
+        'Content-Type':'application/json'
+      },
+
+      body:JSON.stringify({
+        id:vid
+      })
+
+    });
+
+    if(!r.ok){
       return;
     }
 
+    const s = await r.json();
 
-    const stats =
-      await response.json();
-
-
-    if(
-      stats &&
-      typeof stats.online !== 'undefined'
-    ){
-
-      document.getElementById('online').textContent =
-        stats.online;
-
-    }
-
-
-    if(
-      stats &&
-      typeof stats.today !== 'undefined'
-    ){
-
-      document.getElementById('today').textContent =
-        stats.today;
-
-    }
+    online.textContent = s.online ?? 0;
+    today.textContent = s.today ?? 0;
 
   }catch(error){
 
-    console.warn('Visitor heartbeat error:',error);
+    console.error('Visitor heartbeat error:',error);
 
   }
 
@@ -865,9 +671,7 @@ window.addEventListener('pagehide',function(){
       '/api/visitor/exit',
       new Blob(
         [JSON.stringify({id:vid})],
-        {
-          type:'application/json'
-        }
+        {type:'application/json'}
       )
     );
 
@@ -876,13 +680,10 @@ window.addEventListener('pagehide',function(){
 });
 
 
-// =========================
-// تشغيل الموقع
-// =========================
-
-loadPackages();
+load();
 
 </script>
 
 </body>
 </html>
+```
