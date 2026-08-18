@@ -35,93 +35,25 @@ const supabase =
       })
     : null;
 
-const rawConnectionString =
+const connectionString =
+  process.env.POSTGRES_URL_NON_POOLING ||
   process.env.POSTGRES_PRISMA_URL ||
-  process.env.POSTGRES_URL ||
-  process.env.POSTGRES_URL_NON_POOLING;
+  process.env.POSTGRES_URL;
 
-if (!rawConnectionString) {
-  console.warn(
-    'WARNING: No Postgres connection string found.'
-  );
-}
-
-/* =========================================================
-   DATABASE
-   ========================================================= */
-
-const rawConnectionString =
-  process.env.POSTGRES_PRISMA_URL ||
-  process.env.POSTGRES_URL ||
-  process.env.POSTGRES_URL_NON_POOLING;
-
-if (!rawConnectionString) {
-  console.warn(
-    'WARNING: No Postgres connection string found.'
-  );
-}
-
-/*
-  Remove SSL/pooler parameters from the connection URL.
-
-  Important:
-  node-postgres can let sslmode from the URL override
-  the explicit ssl object. This can cause:
-
-  self-signed certificate in certificate chain
-
-  So we remove the SSL-related URL parameters and
-  explicitly configure SSL below.
-*/
-
-let connectionString = null;
-
-if (rawConnectionString) {
-  try {
-    const url = new URL(rawConnectionString);
-
-    url.searchParams.delete('sslmode');
-    url.searchParams.delete('pgbouncer');
-    url.searchParams.delete('supa');
-
-    connectionString = url.toString();
-  } catch (error) {
-    console.error(
-      'Invalid PostgreSQL connection string:',
-      error
-    );
-
-    connectionString = rawConnectionString
-      .replace(
-        /([?&])sslmode=[^&]*/gi,
-        '$1'
-      )
-      .replace(
-        /([?&])pgbouncer=[^&]*/gi,
-        '$1'
-      )
-      .replace(
-        /([?&])supa=[^&]*/gi,
-        '$1'
-      )
-      .replace(
-        /[?&]$/,
-        ''
-      );
-  }
+if (!connectionString) {
+  console.warn('WARNING: No Postgres connection string found.');
 }
 
 const pool = connectionString
   ? new Pool({
-      connectionString,
-
+      connectionString: connectionString.replace(
+        /[?&]sslmode=[^&]*/i,
+        ''
+      ),
       ssl: {
         rejectUnauthorized: false
       },
-
-      max: 2,
-      idleTimeoutMillis: 10000,
-      connectionTimeoutMillis: 10000
+      max: 2
     })
   : null;
 const defaultPackages = {
