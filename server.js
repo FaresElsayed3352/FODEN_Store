@@ -46,12 +46,16 @@ if (!connectionString) {
 
 const pool = connectionString
   ? new Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false },
+      connectionString: connectionString.replace(
+        /[?&]sslmode=[^&]*/i,
+        ''
+      ),
+      ssl: {
+        rejectUnauthorized: false
+      },
       max: 2
     })
   : null;
-
 const defaultPackages = {
   id: [
     [110, 60],
