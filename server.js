@@ -43,9 +43,29 @@ if (!connectionString) {
   console.warn('WARNING: No Postgres connection string found.');
 }
 
-const pool = connectionString
+let dbConnectionString = connectionString
+  ? connectionString.trim()
+  : null;
+
+if (dbConnectionString) {
+  try {
+    const dbUrl = new URL(dbConnectionString);
+
+    // Let Node pg control SSL instead of the connection-string sslmode.
+    dbUrl.searchParams.delete('sslmode');
+
+    dbConnectionString = dbUrl.toString();
+  } catch (error) {
+    console.error(
+      'Invalid PostgreSQL connection string:',
+      error
+    );
+  }
+}
+
+const pool = dbConnectionString
   ? new Pool({
-      connectionString: connectionString.trim(),
+      connectionString: dbConnectionString,
       ssl: {
         rejectUnauthorized: false
       },
