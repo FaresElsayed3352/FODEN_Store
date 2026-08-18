@@ -46,20 +46,79 @@ if (!rawConnectionString) {
   );
 }
 
-const connectionString = rawConnectionString
-  ? rawConnectionString
-      .replace(/[?&]sslmode=[^&]*/gi, '')
-      .replace(/[?&]pgbouncer=[^&]*/gi, '')
-      .replace(/[?&]supa=[^&]*/gi, '')
-      .replace(/[?&]sslrootcert=[^&]*/gi, '')
-  : null;
+/* =========================================================
+   DATABASE
+   ========================================================= */
+
+const rawConnectionString =
+  process.env.POSTGRES_PRISMA_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.POSTGRES_URL_NON_POOLING;
+
+if (!rawConnectionString) {
+  console.warn(
+    'WARNING: No Postgres connection string found.'
+  );
+}
+
+/*
+  Remove SSL/pooler parameters from the connection URL.
+
+  Important:
+  node-postgres can let sslmode from the URL override
+  the explicit ssl object. This can cause:
+
+  self-signed certificate in certificate chain
+
+  So we remove the SSL-related URL parameters and
+  explicitly configure SSL below.
+*/
+
+let connectionString = null;
+
+if (rawConnectionString) {
+  try {
+    const url = new URL(rawConnectionString);
+
+    url.searchParams.delete('sslmode');
+    url.searchParams.delete('pgbouncer');
+    url.searchParams.delete('supa');
+
+    connectionString = url.toString();
+  } catch (error) {
+    console.error(
+      'Invalid PostgreSQL connection string:',
+      error
+    );
+
+    connectionString = rawConnectionString
+      .replace(
+        /([?&])sslmode=[^&]*/gi,
+        '$1'
+      )
+      .replace(
+        /([?&])pgbouncer=[^&]*/gi,
+        '$1'
+      )
+      .replace(
+        /([?&])supa=[^&]*/gi,
+        '$1'
+      )
+      .replace(
+        /[?&]$/,
+        ''
+      );
+  }
+}
 
 const pool = connectionString
   ? new Pool({
       connectionString,
+
       ssl: {
         rejectUnauthorized: false
       },
+
       max: 2,
       idleTimeoutMillis: 10000,
       connectionTimeoutMillis: 10000
