@@ -35,37 +35,17 @@ const supabase =
       })
     : null;
 const connectionString =
-  process.env.POSTGRES_URL ||
-  process.env.POSTGRES_PRISMA_URL ||
-  process.env.POSTGRES_URL_NON_POOLING;
+  process.env.POSTGRES_PRISMA_URL;
 
 if (!connectionString) {
-  console.warn('WARNING: No Postgres connection string found.');
+  console.warn(
+    'WARNING: No Postgres connection string found.'
+  );
 }
 
-let dbConnectionString = connectionString
-  ? connectionString.trim()
-  : null;
-
-if (dbConnectionString) {
-  try {
-    const dbUrl = new URL(dbConnectionString);
-
-    // Let Node pg control SSL instead of the connection-string sslmode.
-    dbUrl.searchParams.delete('sslmode');
-
-    dbConnectionString = dbUrl.toString();
-  } catch (error) {
-    console.error(
-      'Invalid PostgreSQL connection string:',
-      error
-    );
-  }
-}
-
-const pool = dbConnectionString
+const pool = connectionString
   ? new Pool({
-      connectionString: dbConnectionString,
+      connectionString: connectionString.trim(),
       ssl: {
         rejectUnauthorized: false
       },
